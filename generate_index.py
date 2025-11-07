@@ -2,7 +2,7 @@ import os, json
 
 IMAGE_EXTS = {'.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.avif'}
 
-CDN_PREFIX = "https://cdn.jsdelivr.net/gh/DawnNights/seer_gallery@main/"
+CDN_PREFIX = "https://gcore.jsdelivr.net/gh/DawnNights/seer_gallery@main/"
 
 def is_image(name):
     return os.path.splitext(name.lower())[1] in IMAGE_EXTS
