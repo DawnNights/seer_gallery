@@ -43,20 +43,26 @@ function makeImageCard(src) {
 function renderAlbumList(albums, heading) {
   main.innerHTML = '';
   title.textContent = heading;
-  backBtn.style.display = albumStack.length ? 'inline-block' : 'none';
+  currentAlbum = null; // 根目录
+  backBtn.style.display = 'none'; // 根目录隐藏按钮
 
   const grid = el('div', 'grid');
   albums.forEach(alb => grid.append(makeAlbumCard(alb)));
   main.append(grid);
 }
 
-function openAlbum(album) {
-  albumStack.push(currentAlbum);
+function openAlbum(album, pushToStack = true) {
+  if (pushToStack && currentAlbum) {
+    albumStack.push(currentAlbum);
+  }
   currentAlbum = album;
   main.innerHTML = '';
   title.textContent = album.name;
-  backBtn.style.display = 'inline-block';
 
+  // 返回按钮显示：只有根目录隐藏，所有子目录显示
+  backBtn.style.display = (currentAlbum === null) ? 'none' : 'inline-block';
+
+  // 子相册
   if (album.subalbums && album.subalbums.length) {
     const subTitle = el('h2');
     subTitle.textContent = '子相册';
@@ -66,6 +72,7 @@ function openAlbum(album) {
     main.append(subGrid);
   }
 
+  // 图片
   if (album.images && album.images.length) {
     const imgTitle = el('h2');
     imgTitle.textContent = '图片';
@@ -79,13 +86,13 @@ function openAlbum(album) {
 }
 
 function goBack() {
-  const prev = albumStack.pop();
-  if (!prev) {
+  if (albumStack.length === 0) {
     renderAlbumList(rootData.albums, '我的画廊');
     currentAlbum = null;
+    backBtn.style.display = 'none';
   } else {
-    currentAlbum = prev;
-    openAlbum(prev);
+    const prev = albumStack.pop();
+    openAlbum(prev, false); // 返回上一级时不再 push
   }
 }
 
@@ -98,7 +105,6 @@ function showViewer(src) {
   viewer.style.display = 'flex';
   viewerImg.src = src;
 
-  // 当前相册的所有图片
   currentImages = (currentAlbum?.images || []).map(img => currentAlbum.path + img);
   currentIndex = currentImages.indexOf(src);
 
@@ -126,11 +132,8 @@ function showViewer(src) {
     if (e.key === 'Escape') closeViewer();
   };
 
-  // 触摸滑动支持
   let startX = 0;
-  viewer.addEventListener('touchstart', (e) => {
-    startX = e.touches[0].clientX;
-  });
+  viewer.addEventListener('touchstart', (e) => { startX = e.touches[0].clientX; });
   viewer.addEventListener('touchend', (e) => {
     const endX = e.changedTouches[0].clientX;
     if (endX - startX > 50) showImageAt(currentIndex - 1);
