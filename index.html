@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>静态画廊</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/DawnNights/seer_gallery@main/styles.css">
+</head>
+<body>
+  <header class="site-header">
+    <a class="brand" href="#">静态画廊</a>
+    <nav class="nav-info">GitHub Pages + jsDelivr 加速</nav>
+  </header>
+
+  <main id="app" class="container"></main>
+
+  <div id="lightbox" class="lightbox hidden" tabindex="-1" aria-hidden="true">
+    <button class="lb-close" id="lbClose">&times;</button>
+    <button class="lb-prev" id="lbPrev">&#10094;</button>
+    <img id="lbImg" src="" alt="">
+    <button class="lb-next" id="lbNext">&#10095;</button>
+    <div id="lbCaption" class="lb-caption"></div>
+  </div>
+
+  <footer class="site-footer">
+    <small>由 GitHub Pages 自动构建，资源来自 jsDelivr CDN</small>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/gh/DawnNights/seer_gallery@main/gallery.js"></script>
+</body>
+</html>
