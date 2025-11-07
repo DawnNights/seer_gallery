@@ -1,31 +1,33 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>静态画廊</title>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/DawnNights/seer_gallery@main/styles.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>醉星河的画廊</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;600&display=swap" rel="stylesheet">
 </head>
 <body>
-  <header class="site-header">
-    <a class="brand" href="#">静态画廊</a>
-    <nav class="nav-info">GitHub Pages + jsDelivr 加速</nav>
+  <header class="topbar">
+    <h1 id="title">醉星河的画廊</h1>
+    <button id="backBtn" class="btn">返回上一级</button>
   </header>
 
-  <main id="app" class="container"></main>
+  <main id="main" class="fade-in"></main>
 
-  <div id="lightbox" class="lightbox hidden" tabindex="-1" aria-hidden="true">
-    <button class="lb-close" id="lbClose">&times;</button>
-    <button class="lb-prev" id="lbPrev">&#10094;</button>
-    <img id="lbImg" src="" alt="">
-    <button class="lb-next" id="lbNext">&#10095;</button>
-    <div id="lbCaption" class="lb-caption"></div>
-  </div>
-
-  <footer class="site-footer">
-    <small>由 GitHub Pages 自动构建，资源来自 jsDelivr CDN</small>
+  <footer>
+    <p>© 欢迎加入 <a href="https://qm.qq.com/q/suqAh19Xpu" target="_blank">醉星河的秘密基地</a> 交流反馈</p>
   </footer>
 
-  <script src="https://cdn.jsdelivr.net/gh/DawnNights/seer_gallery@main/gallery.js"></script>
+  <!-- 图片查看器 -->
+  <div id="viewer" style="display: none;">
+    <span class="nav prev">‹</span>
+    <img id="viewer-img" src="">
+    <span class="nav next">›</span>
+  </div>
+
+  <script src="gallery.js"></script>
 </body>
 </html>
