@@ -26,6 +26,7 @@ body {
 #title {
   font-weight: 600;
   margin: 0;
+  cursor: pointer;
 }
 .btn {
   background: #0078ff;
@@ -139,3 +140,12 @@ footer {
 }
 footer a { color: #0078ff; text-decoration: none; }
 footer a:hover { text-decoration: underline; }
+
+.footer-tip {
+  margin-top: 6px;
+  font-size: 0.9rem;
+  color: #0078ff;
+  text-align: center;
+  transition: opacity 0.3s ease;
+  opacity: 0.85;
+}

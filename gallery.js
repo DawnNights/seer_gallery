@@ -1,10 +1,15 @@
 const main = document.getElementById('main');
 const title = document.getElementById('title');
 const backBtn = document.getElementById('backBtn');
+const footerTip = document.getElementById('footer-tip');
 
 let albumStack = [];
 let currentAlbum = null;
 let rootData = null;
+
+let secretUnlocked = false;
+let clickCount = 0;
+const totalClicks = 5;
 
 async function init() {
   const res = await fetch('index.json');
@@ -43,11 +48,13 @@ function makeImageCard(src) {
 function renderAlbumList(albums, heading) {
   main.innerHTML = '';
   title.textContent = heading;
-  currentAlbum = null; // 根目录
-  backBtn.style.display = 'none'; // 根目录隐藏按钮
+  currentAlbum = null;
+  backBtn.style.display = 'none';
 
   const grid = el('div', 'grid');
-  albums.forEach(alb => grid.append(makeAlbumCard(alb)));
+  albums
+    .filter(alb => secretUnlocked || alb.name !== 'R18')
+    .forEach(alb => grid.append(makeAlbumCard(alb)));
   main.append(grid);
 }
 
@@ -58,21 +65,19 @@ function openAlbum(album, pushToStack = true) {
   currentAlbum = album;
   main.innerHTML = '';
   title.textContent = album.name;
-
-  // 返回按钮显示：只有根目录隐藏，所有子目录显示
   backBtn.style.display = (currentAlbum === null) ? 'none' : 'inline-block';
 
-  // 子相册
   if (album.subalbums && album.subalbums.length) {
     const subTitle = el('h2');
     subTitle.textContent = '子相册';
     main.append(subTitle);
     const subGrid = el('div', 'grid');
-    album.subalbums.forEach(sa => subGrid.append(makeAlbumCard(sa)));
+    album.subalbums
+      .filter(sa => secretUnlocked || sa.name !== 'R18')
+      .forEach(sa => subGrid.append(makeAlbumCard(sa)));
     main.append(subGrid);
   }
 
-  // 图片
   if (album.images && album.images.length) {
     const imgTitle = el('h2');
     imgTitle.textContent = '图片';
@@ -92,7 +97,7 @@ function goBack() {
     backBtn.style.display = 'none';
   } else {
     const prev = albumStack.pop();
-    openAlbum(prev, false); // 返回上一级时不再 push
+    openAlbum(prev, false);
   }
 }
 
@@ -148,3 +153,19 @@ function showViewer(src) {
 
 backBtn.onclick = goBack;
 init();
+
+// === 隐藏相册解锁逻辑 ===
+title.addEventListener('click', () => {
+  if (secretUnlocked) return;
+
+  clickCount++;
+  const remaining = totalClicks - clickCount;
+
+  if (remaining > 0) {
+    footerTip.textContent = `点击左上角标题 ${remaining} 次，会有好事发生`;
+  } else {
+    secretUnlocked = true;
+    footerTip.textContent = "🎉 隐藏相册已解锁！";
+    renderAlbumList(rootData.albums, '我的画廊');
+  }
+});
