@@ -100,13 +100,19 @@ h2 {
   align-items: center;
   justify-content: center;
   z-index: 999;
+  transition: background 0.3s ease;
 }
 #viewer img {
   max-width: 90%;
   max-height: 90%;
   border-radius: 10px;
   user-select: none;
-  transition: transform 0.3s ease;
+  transition: transform 0.25s ease;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.3);
+  cursor: grab;
+}
+#viewer img:active {
+  cursor: grabbing;
 }
 #viewer .nav {
   position: absolute;

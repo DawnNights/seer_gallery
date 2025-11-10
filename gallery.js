@@ -1,3 +1,5 @@
+// === gallery.js ===
+
 const main = document.getElementById('main');
 const title = document.getElementById('title');
 const backBtn = document.getElementById('backBtn');
@@ -12,8 +14,8 @@ let clickCount = 0;
 const totalClicks = 5;
 
 // === 今日推荐设置 ===
-const RECOMMEND_VERSION = 251110; // 修改此值刷新浮窗
-const RECOMMEND_PATH = "https://gcore.jsdelivr.net/gh/DawnNights/seer_gallery@main/R18/沧岚/"; // 推荐相册路径
+const RECOMMEND_VERSION = 251110;
+const RECOMMEND_PATH = "https://gcore.jsdelivr.net/gh/DawnNights/seer_gallery@main/R18/沧岚/";
 
 async function init() {
   const res = await fetch('index.json');
@@ -62,7 +64,6 @@ function renderAlbumList(albums, heading) {
     .forEach(alb => grid.append(makeAlbumCard(alb)));
   main.append(grid);
 
-  // ✅ 进入主目录时回到页面顶部
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
@@ -93,7 +94,6 @@ function openAlbum(album, pushToStack = true) {
     main.append(imgGrid);
   }
 
-  // ✅ 打开相册时自动回到页面顶部
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
@@ -131,6 +131,7 @@ function showViewer(src) {
     if (index >= currentImages.length) index = 0;
     currentIndex = index;
     viewerImg.src = currentImages[currentIndex];
+    resetTransform();
   }
 
   prevBtn.onclick = (e) => { e.stopPropagation(); showImageAt(currentIndex - 1); };
@@ -142,17 +143,120 @@ function showViewer(src) {
     if (e.key === 'Escape') closeViewer();
   };
 
-  let startX = 0;
-  viewer.addEventListener('touchstart', (e) => { startX = e.touches[0].clientX; });
-  viewer.addEventListener('touchend', (e) => {
-    const endX = e.changedTouches[0].clientX;
-    if (endX - startX > 50) showImageAt(currentIndex - 1);
-    if (startX - endX > 50) showImageAt(currentIndex + 1);
+  // === ✅ 新增缩放与拖动逻辑 ===
+  let scale = 1, lastScale = 1, startDistance = 0;
+  let isDragging = false, startX = 0, startY = 0, translateX = 0, translateY = 0;
+  let lastTranslateX = 0, lastTranslateY = 0;
+  let lastTap = 0;
+
+  // 滚轮缩放
+  viewerImg.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    const delta = -e.deltaY * 0.001;
+    scale = Math.min(Math.max(scale + delta, 0.5), 5);
+    applyTransform();
   });
+
+  // 鼠标拖动
+  viewerImg.addEventListener('mousedown', e => {
+    if (scale <= 1) return;
+    isDragging = true;
+    startX = e.clientX - lastTranslateX;
+    startY = e.clientY - lastTranslateY;
+    viewerImg.style.cursor = 'grabbing';
+  });
+  document.addEventListener('mousemove', e => {
+    if (!isDragging) return;
+    translateX = e.clientX - startX;
+    translateY = e.clientY - startY;
+    applyTransform();
+  });
+  document.addEventListener('mouseup', () => {
+    if (isDragging) {
+      isDragging = false;
+      lastTranslateX = translateX;
+      lastTranslateY = translateY;
+      viewerImg.style.cursor = 'grab';
+    }
+  });
+
+  // 触摸缩放与拖动
+  viewerImg.addEventListener('touchstart', e => {
+    if (e.touches.length === 2) {
+      e.preventDefault();
+      startDistance = getDistance(e.touches);
+      lastScale = scale;
+    } else if (e.touches.length === 1 && scale > 1) {
+      isDragging = true;
+      startX = e.touches[0].clientX - lastTranslateX;
+      startY = e.touches[0].clientY - lastTranslateY;
+    }
+
+    // 双击放大/还原
+    const now = Date.now();
+    if (now - lastTap < 300 && e.touches.length === 1) {
+      scale = scale > 1 ? 1 : 2;
+      resetPosition();
+      applyTransform();
+    }
+    lastTap = now;
+  });
+
+  viewerImg.addEventListener('touchmove', e => {
+    if (e.touches.length === 2) {
+      e.preventDefault();
+      const newDistance = getDistance(e.touches);
+      scale = Math.min(Math.max(lastScale * (newDistance / startDistance), 0.5), 5);
+      applyTransform();
+    } else if (e.touches.length === 1 && isDragging && scale > 1) {
+      translateX = e.touches[0].clientX - startX;
+      translateY = e.touches[0].clientY - startY;
+      applyTransform();
+    }
+  });
+
+  viewerImg.addEventListener('touchend', e => {
+    if (isDragging) {
+      isDragging = false;
+      lastTranslateX = translateX;
+      lastTranslateY = translateY;
+    }
+    if (scale < 1) scale = 1;
+    applyTransform();
+  });
+
+  function getDistance(touches) {
+    const [t1, t2] = touches;
+    const dx = t2.pageX - t1.pageX;
+    const dy = t2.pageY - t1.pageY;
+    return Math.hypot(dx, dy);
+  }
+
+  function applyTransform() {
+    viewerImg.style.transform = `translate(${translateX}px, ${translateY}px) scale(${scale})`;
+  }
+
+  function resetTransform() {
+    scale = 1;
+    lastScale = 1;
+    translateX = 0;
+    translateY = 0;
+    lastTranslateX = 0;
+    lastTranslateY = 0;
+    applyTransform();
+  }
+
+  function resetPosition() {
+    translateX = 0;
+    translateY = 0;
+    lastTranslateX = 0;
+    lastTranslateY = 0;
+  }
 
   function closeViewer() {
     viewer.style.display = 'none';
     document.onkeydown = null;
+    resetTransform();
   }
 }
 
