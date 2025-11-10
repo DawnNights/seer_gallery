@@ -12,7 +12,7 @@ let clickCount = 0;
 const totalClicks = 5;
 
 // === 今日推荐设置 ===
-const RECOMMEND_VERSION = 20251110; // 修改此值刷新浮窗
+const RECOMMEND_VERSION = 251110; // 修改此值刷新浮窗
 const RECOMMEND_PATH = "https://gcore.jsdelivr.net/gh/DawnNights/seer_gallery@main/R18/沧岚/"; // 推荐相册路径
 
 async function init() {
@@ -61,6 +61,9 @@ function renderAlbumList(albums, heading) {
     .filter(alb => secretUnlocked || alb.name !== 'R18')
     .forEach(alb => grid.append(makeAlbumCard(alb)));
   main.append(grid);
+
+  // ✅ 进入主目录时回到页面顶部
+  window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 function openAlbum(album, pushToStack = true) {
@@ -89,6 +92,9 @@ function openAlbum(album, pushToStack = true) {
     album.images.forEach(img => imgGrid.append(makeImageCard(album.path + img)));
     main.append(imgGrid);
   }
+
+  // ✅ 打开相册时自动回到页面顶部
+  window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 function goBack() {
@@ -178,7 +184,7 @@ function checkRecommend() {
   const captionEl = document.getElementById('recommend-caption');
 
   imgEl.src = album.path + album.images[0];
-  captionEl.textContent = "来自相册：" + getAlbumPathName(rootData.albums, RECOMMEND_PATH).join(" / ");
+  captionEl.textContent = "点击图片前往相册：" + getAlbumPathName(rootData.albums, RECOMMEND_PATH).join(" / ");
   overlay.style.display = 'flex';
 
   imgEl.onclick = () => {
