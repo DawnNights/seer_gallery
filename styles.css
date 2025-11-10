@@ -147,7 +147,11 @@ footer {
   z-index: 100;
   box-shadow: 0 -2px 6px rgba(0, 0, 0, 0.05);
 }
-main { flex: 1; padding: 20px; padding-bottom: 100px; }
+main {
+  flex: 1;
+  padding: 20px;
+  padding-bottom: 100px;
+}
 footer a { color: #0078ff; text-decoration: none; }
 footer a:hover { text-decoration: underline; }
 .footer-tip {
@@ -162,86 +166,39 @@ footer a:hover { text-decoration: underline; }
 .recommend-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0,0,0,0.55);
-  display: flex;
+  background-color: rgba(0,0,0,0.6);
+  display: none;
   justify-content: center;
   align-items: center;
-  z-index: 999;
-  backdrop-filter: blur(3px);
+  z-index: 9999;
 }
 .recommend-box {
   background: #fff;
+  padding: 16px;
   border-radius: 16px;
-  padding: 20px;
-  max-width: 90%;
-  width: 380px;
-  box-shadow: 0 4px 18px rgba(0,0,0,0.25);
   text-align: center;
-  animation: popIn 0.3s ease;
-  font-family: 'Noto Sans SC', sans-serif;
-}
-@keyframes popIn {
-  from { transform: scale(0.9); opacity: 0; }
-  to { transform: scale(1); opacity: 1; }
+  max-width: 90%;
+  width: 340px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+  animation: fadeInScale 0.3s ease;
 }
 .recommend-box h2 {
-  margin-bottom: 12px;
-  font-size: 1.4em;
-  font-weight: 600;
-}
-.recommend-img-container {
-  width: 100%;
-  border-radius: 12px;
-  overflow: hidden;
+  font-size: 1.3em;
   margin-bottom: 10px;
 }
-.recommend-img-container img {
+.recommend-img {
   width: 100%;
-  height: auto;
-  display: block;
-}
-.recommend-caption {
-  font-size: 0.95em;
-  color: #444;
-  margin-bottom: 14px;
-  word-wrap: break-word;
-}
-.recommend-buttons {
-  display: flex;
-  justify-content: space-evenly;
-  gap: 12px;
-}
-.recommend-buttons .btn {
-  flex: 1;
-  padding: 8px 0;
-  border: none;
-  border-radius: 8px;
-  font-size: 1em;
+  border-radius: 12px;
   cursor: pointer;
-  transition: 0.2s;
+  transition: transform 0.2s ease;
 }
-.btn.primary {
-  background: #0078ff;
-  color: #fff;
+.recommend-img:hover { transform: scale(1.03); }
+.recommend-caption {
+  font-size: 0.9em;
+  color: #666;
+  margin-top: 8px;
 }
-.btn.primary:hover {
-  background: #005fd1;
-}
-.btn.secondary {
-  background: #e4e4e4;
-}
-.btn.secondary:hover {
-  background: #cfcfcf;
-}
-@media (max-width: 480px) {
-  .recommend-box {
-    width: 90%;
-    padding: 16px;
-  }
-  .recommend-box h2 {
-    font-size: 1.2em;
-  }
-  .recommend-caption {
-    font-size: 0.85em;
-  }
+@keyframes fadeInScale {
+  from { transform: scale(0.9); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
 }

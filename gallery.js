@@ -7,31 +7,27 @@ let rootData = null;
 let currentAlbum = null;
 let albumStack = [];
 
-// === 隐藏相册解锁 ===
 let secretUnlocked = false;
 let clickCount = 0;
 const totalClicks = 5;
 
 // === 今日推荐设置 ===
-const RECOMMEND_VERSION = 251110; // 修改此值刷新浮窗
-const RECOMMEND_PATH = "https://gcore.jsdelivr.net/gh/DawnNights/seer_gallery@main/北鸟/CP/";
+const RECOMMEND_VERSION = 20251110; // 修改此值刷新浮窗
+const RECOMMEND_PATH = "https://gcore.jsdelivr.net/gh/DawnNights/seer_gallery@main/R18/沧岚/"; // 推荐相册路径
 
-// 初始化
 async function init() {
   const res = await fetch('index.json');
   rootData = await res.json();
   renderAlbumList(rootData.albums, '我的画廊');
-  checkRecommend(); // ⬅️ 检查今日推荐
+  checkRecommend();
 }
 
-// 创建元素
 function el(tag, cls) {
   const e = document.createElement(tag);
   if (cls) e.className = cls;
   return e;
 }
 
-// 相册卡片
 function makeAlbumCard(album) {
   const card = el('div', 'card fade-in');
   const img = el('img');
@@ -45,7 +41,6 @@ function makeAlbumCard(album) {
   return card;
 }
 
-// 图片卡片
 function makeImageCard(src) {
   const card = el('div', 'card fade-in');
   const img = el('img');
@@ -55,7 +50,6 @@ function makeImageCard(src) {
   return card;
 }
 
-// 渲染相册列表
 function renderAlbumList(albums, heading) {
   main.innerHTML = '';
   title.textContent = heading;
@@ -69,7 +63,6 @@ function renderAlbumList(albums, heading) {
   main.append(grid);
 }
 
-// 打开相册
 function openAlbum(album, pushToStack = true) {
   if (pushToStack && currentAlbum) albumStack.push(currentAlbum);
   currentAlbum = album;
@@ -98,7 +91,6 @@ function openAlbum(album, pushToStack = true) {
   }
 }
 
-// 返回上一级
 function goBack() {
   if (albumStack.length === 0) {
     renderAlbumList(rootData.albums, '我的画廊');
@@ -158,7 +150,7 @@ function showViewer(src) {
   }
 }
 
-// === 隐藏相册解锁逻辑 ===
+// === 隐藏相册解锁 ===
 title.addEventListener('click', () => {
   if (secretUnlocked) return;
   clickCount++;
@@ -184,22 +176,19 @@ function checkRecommend() {
   const overlay = document.getElementById('recommend-overlay');
   const imgEl = document.getElementById('recommend-img');
   const captionEl = document.getElementById('recommend-caption');
-  const goBtn = document.getElementById('recommend-go');
-  const cancelBtn = document.getElementById('recommend-cancel');
 
   imgEl.src = album.path + album.images[0];
   captionEl.textContent = "来自相册：" + getAlbumPathName(rootData.albums, RECOMMEND_PATH).join(" / ");
   overlay.style.display = 'flex';
 
-  goBtn.onclick = () => {
+  imgEl.onclick = () => {
     overlay.style.display = 'none';
     openAlbumByPath(RECOMMEND_PATH);
   };
-  cancelBtn.onclick = () => overlay.style.display = 'none';
   overlay.onclick = (e) => { if (e.target === overlay) overlay.style.display = 'none'; };
 }
 
-// === 推荐工具函数 ===
+// === 工具函数 ===
 function findAlbumByPath(albums, path) {
   for (const album of albums) {
     if (album.path === path) return album;
