@@ -14,8 +14,8 @@ let clickCount = 0;
 const totalClicks = 5;
 
 // === 今日推荐设置 ===
-const RECOMMEND_VERSION = 251110;
-const RECOMMEND_PATH = "https://gcore.jsdelivr.net/gh/DawnNights/seer_gallery@main/R18/沧岚/";
+const RECOMMEND_VERSION = 251122;
+const RECOMMEND_PATH = "https://gcore.jsdelivr.net/gh/DawnNights/seer_gallery@main/卡托娜";
 
 async function init() {
   const res = await fetch('index.json');
