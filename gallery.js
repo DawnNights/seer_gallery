@@ -14,8 +14,8 @@ let clickCount = 0;
 const totalClicks = 5;
 
 // === 今日推荐设置 ===
-const RECOMMEND_VERSION = 251123;
-const RECOMMEND_PATH = "https://gcore.jsdelivr.net/gh/DawnNights/seer_gallery@main/星礼/";
+const RECOMMEND_VERSION = 251129;
+const RECOMMEND_PATH = "https://gcore.jsdelivr.net/gh/DawnNights/seer_gallery@main/R18/同歌(北鸟x南霜)/";
 
 async function init() {
   const res = await fetch('index.json');
