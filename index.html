@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -9,6 +10,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;600&display=swap" rel="stylesheet">
 </head>
+
 <body>
   <header class="topbar">
     <h1 id="title">我的画廊</h1>
@@ -16,6 +18,15 @@
   </header>
 
   <main id="main" class="fade-in"></main>
+
+  <!-- Cusdis 评论区 -->
+  <div id="comment-wrapper" style="display:none;">
+    <h2 style="margin:16px 20px 8px;">评论区</h2>
+    <div id="cusdis_thread"></div>
+  </div>
+
+  <script async defer src="https://cusdis.com/js/cusdis.es.js"></script>
+
 
   <footer>
     <div id="footer-tip" class="footer-tip">点击左上角标题 5 次，会有好事发生</div>
@@ -40,4 +51,5 @@
 
   <script src="gallery.js"></script>
 </body>
+
 </html>

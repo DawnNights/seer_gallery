@@ -1,5 +1,10 @@
 // === gallery.js ===
 
+// === Cusdis 配置 ===
+const CUSDIS_APP_ID = "0a430d73-5f2b-4da9-963f-e3b6991dfbab"; // ← 换成你自己的
+const SITE_URL = "https://dawnnights.github.io/seer_gallery/";
+
+
 const main = document.getElementById('main');
 const title = document.getElementById('title');
 const backBtn = document.getElementById('backBtn');
@@ -57,6 +62,7 @@ function renderAlbumList(albums, heading) {
   title.textContent = heading;
   currentAlbum = null;
   backBtn.style.display = 'none';
+  renderCommentsForAlbum(null);
 
   const grid = el('div', 'grid');
   albums
@@ -95,6 +101,7 @@ function openAlbum(album, pushToStack = true) {
   }
 
   window.scrollTo({ top: 0, behavior: 'smooth' });
+  renderCommentsForAlbum(album);
 }
 
 function goBack() {
@@ -326,5 +333,36 @@ function openAlbumByPath(path) {
   const album = findAlbumByPath(rootData.albums, path);
   if (album) openAlbum(album);
 }
+
+function renderCommentsForAlbum(album) {
+  const wrapper = document.getElementById('comment-wrapper');
+  const thread = document.getElementById('cusdis_thread');
+
+  // 首页不显示评论
+  if (!album) {
+    wrapper.style.display = 'none';
+    return;
+  }
+
+  // 显示评论区
+  wrapper.style.display = 'block';
+
+  // 清空旧评论 iframe
+  thread.innerHTML = '';
+
+  // 每个相册一个唯一 ID
+  const pageId = album.path;
+  const pageUrl = SITE_URL + '#/' + encodeURIComponent(album.path);
+
+  thread.setAttribute('data-host', 'https://cusdis.com');
+  thread.setAttribute('data-app-id', CUSDIS_APP_ID);
+  thread.setAttribute('data-page-id', pageId);
+  thread.setAttribute('data-page-title', album.name);
+  thread.setAttribute('data-page-url', pageUrl);
+
+  // 通知 Cusdis 重新加载
+  window.CUSDIS && window.CUSDIS.renderTo(thread);
+}
+
 
 init();

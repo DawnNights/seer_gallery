@@ -208,3 +208,9 @@ footer a:hover { text-decoration: underline; }
   from { transform: scale(0.9); opacity: 0; }
   to { transform: scale(1); opacity: 1; }
 }
+
+#comment-wrapper {
+  max-width: 1200px;
+  margin: 0 auto 120px;
+  padding: 0 20px;
+}
