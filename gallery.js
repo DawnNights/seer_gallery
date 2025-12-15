@@ -26,8 +26,8 @@ let currentCommentAlbum = null;
 let cusdisLoaded = false;
 
 // === 今日推荐设置 ===
-const RECOMMEND_VERSION = 251129;
-const RECOMMEND_PATH = "https://gcore.jsdelivr.net/gh/DawnNights/seer_gallery@main/R18/同歌(北鸟x南霜)/";
+const RECOMMEND_VERSION = 251215;
+const RECOMMEND_PATH = "https://gcore.jsdelivr.net/gh/DawnNights/seer_gallery@main/R18/奥菲利娅/这个赫尔卡星人就是逊了(代发)/";
 
 async function init() {
   const res = await fetch('index.json');
