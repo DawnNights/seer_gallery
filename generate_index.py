@@ -1,4 +1,4 @@
-import os, json
+import re, os, json
 
 IMAGE_EXTS = {'.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.avif'}
 
@@ -6,6 +6,12 @@ CDN_PREFIX = "https://gcore.jsdelivr.net/gh/DawnNights/seer_gallery@main/"
 
 def is_image(name):
     return os.path.splitext(name.lower())[1] in IMAGE_EXTS
+
+def image_sort_key(name):
+    # 提取文件名中的第一个数字
+    m = re.search(r'\d+', name)
+    return int(m.group()) if m else 0
+
 
 def build_album(path):
     """递归构建相册结构"""
@@ -31,6 +37,7 @@ def build_album(path):
                 album["subalbums"].append(sub_album)
         elif is_image(entry):
             album["images"].append(entry)
+            album["images"].sort(key=image_sort_key)
 
     return album
 
