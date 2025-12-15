@@ -18,6 +18,13 @@ let secretUnlocked = false;
 let clickCount = 0;
 const totalClicks = 5;
 
+const commentWrapper = document.getElementById('comment-wrapper');
+const commentThread = document.getElementById('cusdis_thread');
+const commentHome = commentWrapper.parentNode;
+let commentExpanded = false;
+let currentCommentAlbum = null;
+let cusdisLoaded = false;
+
 // === 今日推荐设置 ===
 const RECOMMEND_VERSION = 251129;
 const RECOMMEND_PATH = "https://gcore.jsdelivr.net/gh/DawnNights/seer_gallery@main/R18/同歌(北鸟x南霜)/";
@@ -335,33 +342,142 @@ function openAlbumByPath(path) {
 }
 
 function renderCommentsForAlbum(album) {
-  const wrapper = document.getElementById('comment-wrapper');
-  const thread = document.getElementById('cusdis_thread');
-
-  // 首页不显示评论
+  // 首页：隐藏评论区
   if (!album) {
-    wrapper.style.display = 'none';
+    resetCommentState();
+    commentWrapper.style.display = 'none';
+    commentHome.appendChild(commentWrapper);
     return;
   }
 
-  // 显示评论区
-  wrapper.style.display = 'block';
+  // === 切换相册，强制重置 ===
+  resetCommentState();
+  currentCommentAlbum = album;
 
-  // 清空旧评论 iframe
-  thread.innerHTML = '';
+  // 插入到 main 顶部
+  const anchor = ensureCommentAnchor();
+  anchor.appendChild(commentWrapper);
+  commentWrapper.style.display = 'block';
 
-  // 每个相册一个唯一 ID
-  const pageId = album.path;
-  const pageUrl = SITE_URL + '#/' + encodeURIComponent(album.path);
+  // 构建 UI（只一次）
+  if (!commentWrapper.classList.contains('collapsible')) {
+    buildCommentCollapseUI();
+  }
+}
 
-  thread.setAttribute('data-host', 'https://cusdis.com');
-  thread.setAttribute('data-app-id', CUSDIS_APP_ID);
-  thread.setAttribute('data-page-id', pageId);
-  thread.setAttribute('data-page-title', album.name);
-  thread.setAttribute('data-page-url', pageUrl);
 
-  // 通知 Cusdis 重新加载
-  window.CUSDIS && window.CUSDIS.renderTo(thread);
+function buildCommentCollapseUI() {
+  commentWrapper.classList.add('collapsible');
+
+  const toggle = document.createElement('div');
+  toggle.className = 'comment-toggle';
+
+  const title = document.createElement('div');
+  title.textContent = '💬 评论区';
+
+  const action = document.createElement('span');
+  action.textContent = '展开';
+
+  toggle.append(title, action);
+
+  const body = document.createElement('div');
+  body.className = 'comment-body collapsed';
+  body.appendChild(commentThread);
+
+  commentWrapper.replaceChildren(toggle, body);
+
+  toggle.onclick = () => {
+    commentExpanded = !commentExpanded;
+
+    body.classList.toggle('expanded', commentExpanded);
+    body.classList.toggle('collapsed', !commentExpanded);
+    action.textContent = commentExpanded ? '收起' : '展开';
+
+    // 只在“当前相册 + 第一次展开”时加载
+    if (commentExpanded && !cusdisLoaded && currentCommentAlbum) {
+      loadCusdisForAlbum(currentCommentAlbum);
+      cusdisLoaded = true;
+    }
+  };
+}
+
+function resetCommentState() {
+  commentExpanded = false;
+  cusdisLoaded = false;
+  currentCommentAlbum = null;
+
+  const body = commentWrapper.querySelector('.comment-body');
+  const action = commentWrapper.querySelector('.comment-toggle span');
+
+  if (body) {
+    body.classList.remove('expanded');
+    body.classList.add('collapsed');
+  }
+
+  if (action) {
+    action.textContent = '展开';
+  }
+
+  // ⚠️ 关键：清空旧评论
+  commentThread.innerHTML = '';
+}
+
+function loadCusdisForAlbum(album) {
+  commentThread.innerHTML = '';
+
+  commentThread.setAttribute('data-host', 'https://cusdis.com');
+  commentThread.setAttribute('data-app-id', CUSDIS_APP_ID);
+  commentThread.setAttribute('data-page-id', album.path);
+  commentThread.setAttribute('data-page-title', album.name);
+  commentThread.setAttribute('data-lang', 'zh-cn');
+  commentThread.setAttribute(
+    'data-page-url',
+    SITE_URL + '#/' + encodeURIComponent(album.path)
+  );
+
+  window.CUSDIS && window.CUSDIS.renderTo(commentThread);
+}
+
+
+let pendingAlbum = null;
+
+function prepareCusdis(album) {
+  pendingAlbum = album;
+  document.querySelector('.comment-body')?.classList.add('collapsed');
+  document.querySelector('.comment-toggle span').textContent = '展开';
+}
+
+function loadCusdis() {
+  if (!pendingAlbum) return;
+
+  const album = pendingAlbum;
+
+  commentThread.innerHTML = '';
+
+  commentThread.setAttribute('data-host', 'https://cusdis.com');
+  commentThread.setAttribute('data-app-id', CUSDIS_APP_ID);
+  commentThread.setAttribute('data-page-id', album.path);
+  commentThread.setAttribute('data-page-title', album.name);
+  commentThread.setAttribute('data-lang', 'zh-cn');
+  commentThread.setAttribute(
+    'data-page-url',
+    SITE_URL + '#/' + encodeURIComponent(album.path)
+  );
+
+  window.CUSDIS && window.CUSDIS.renderTo(commentThread);
+}
+
+
+
+
+function ensureCommentAnchor() {
+  let anchor = document.getElementById('comment-anchor');
+  if (!anchor) {
+    anchor = document.createElement('div');
+    anchor.id = 'comment-anchor';
+    main.prepend(anchor);
+  }
+  return anchor;
 }
 
 
