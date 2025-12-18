@@ -290,27 +290,54 @@ title.addEventListener('click', () => {
 
 // === 今日推荐浮窗 ===
 function checkRecommend() {
-  const saved = localStorage.getItem("recommendVersion");
-  if (saved == RECOMMEND_VERSION) return;
+  // 1️⃣ 从 URL 读取 path 参数
+  const urlPath = getQueryParam('path');
 
-  localStorage.setItem("recommendVersion", RECOMMEND_VERSION);
-  const album = findAlbumByPath(rootData.albums, RECOMMEND_PATH);
+  // 2️⃣ 如果 URL 指定了 path，则强制使用它
+  let recommendPath = RECOMMEND_PATH;
+  let forceShow = false;
+
+  if (urlPath) {
+    recommendPath = "https://gcore.jsdelivr.net/gh/DawnNights/seer_gallery@main/" + decodeURIComponent(urlPath);
+    if (!recommendPath.endsWith("/")) {
+      recommendPath = recommendPath + "/"
+    }
+    forceShow = true;
+  }
+
+  // 3️⃣ 非强制模式下，继续走版本控制
+  if (!forceShow) {
+    const saved = localStorage.getItem("recommendVersion");
+    if (saved == RECOMMEND_VERSION) return;
+    localStorage.setItem("recommendVersion", RECOMMEND_VERSION);
+  }
+
+  // 4️⃣ 查找相册
+  const album = findAlbumByPath(rootData.albums, recommendPath);
   if (!album || !album.images?.length) return;
 
+  // 5️⃣ 显示浮窗
   const overlay = document.getElementById('recommend-overlay');
   const imgEl = document.getElementById('recommend-img');
   const captionEl = document.getElementById('recommend-caption');
 
   imgEl.src = album.path + album.images[0];
-  captionEl.textContent = "点击图片前往相册：" + getAlbumPathName(rootData.albums, RECOMMEND_PATH).join(" / ");
+
+  const pathName = getAlbumPathName(rootData.albums, recommendPath).join(" / ");
+  captionEl.textContent = "点击图片前往相册：" + pathName;
+
   overlay.style.display = 'flex';
 
   imgEl.onclick = () => {
     overlay.style.display = 'none';
-    openAlbumByPath(RECOMMEND_PATH);
+    openAlbumByPath(recommendPath);
   };
-  overlay.onclick = (e) => { if (e.target === overlay) overlay.style.display = 'none'; };
+
+  overlay.onclick = (e) => {
+    if (e.target === overlay) overlay.style.display = 'none';
+  };
 }
+
 
 // === 工具函数 ===
 function findAlbumByPath(albums, path) {
@@ -468,8 +495,6 @@ function loadCusdis() {
 }
 
 
-
-
 function ensureCommentAnchor() {
   let anchor = document.getElementById('comment-anchor');
   if (!anchor) {
@@ -479,6 +504,12 @@ function ensureCommentAnchor() {
   }
   return anchor;
 }
+
+function getQueryParam(name) {
+  const params = new URLSearchParams(window.location.search);
+  return params.get(name);
+}
+
 
 
 init();
