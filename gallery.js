@@ -26,8 +26,8 @@ let currentCommentAlbum = null;
 let cusdisLoaded = false;
 
 // === 今日推荐设置 ===
-const RECOMMEND_VERSION = 251220;
-const RECOMMEND_PATH = "https://gcore.jsdelivr.net/gh/DawnNights/seer_gallery@main/R18/沧岚/囚禁调教/";
+const RECOMMEND_VERSION = 251223;
+const RECOMMEND_PATH = "https://gcore.jsdelivr.net/gh/DawnNights/seer_gallery@main/R18/手办/";
 
 async function init() {
   const res = await fetch('index.json');
