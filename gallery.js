@@ -26,8 +26,8 @@ let currentCommentAlbum = null;
 let cusdisLoaded = false;
 
 // === 今日推荐设置 ===
-const RECOMMEND_VERSION = 260201;
-const RECOMMEND_PATH = "https://gcore.jsdelivr.net/gh/DawnNights/seer_gallery@main/R18/系列/一脸嫌弃的自己掰开/";
+const RECOMMEND_VERSION = 260212;
+const RECOMMEND_PATH = "https://gcore.jsdelivr.net/gh/DawnNights/seer_gallery@main/R18/灵巢/";
 
 async function init() {
   const res = await fetch('index.json');
