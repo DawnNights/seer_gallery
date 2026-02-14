@@ -73,7 +73,7 @@ def main(root="."):
         e for e in os.listdir(root)
         if os.path.isdir(os.path.join(root, e))
         and not e.startswith('.')
-        and e not in ('.git', '__pycache__')
+        and e not in ('.git', '__pycache__', '.video')
     ]
 
     dirs.sort(
