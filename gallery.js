@@ -274,11 +274,57 @@ function showViewer(src) {
   }
 }
 
-// === 隐藏相册解锁 ===
+// === 标题：长按进入视频画廊 + 点击解锁 ===
+let pressTimer = null;
+let isLongPress = false;
+
+// === 长按开始 ===
+function startPress() {
+  isLongPress = false;
+
+  pressTimer = setTimeout(() => {
+    isLongPress = true;
+
+    // ✅ 提示反馈
+    footerTip.textContent = "🎬 正在进入视频画廊...";
+
+    // （可选）轻微震动（手机）
+    if (navigator.vibrate) {
+      navigator.vibrate(50);
+    }
+
+    // 延迟一点点再跳，让用户看到提示
+    setTimeout(() => {
+      window.location.href = 'videos.html';
+    }, 200);
+
+  }, 600); // 长按时间
+}
+
+// === 长按结束 ===
+function endPress() {
+  clearTimeout(pressTimer);
+}
+
+// === PC 事件 ===
+title.addEventListener('mousedown', startPress);
+title.addEventListener('mouseup', endPress);
+title.addEventListener('mouseleave', endPress);
+
+// === 手机事件 ===
+title.addEventListener('touchstart', startPress);
+title.addEventListener('touchend', endPress);
+title.addEventListener('touchcancel', endPress);
+
+// === 点击（短按）===
 title.addEventListener('click', () => {
+  if (isLongPress) return; // ❗阻止长按触发点击
+
   if (secretUnlocked) return;
+
   clickCount++;
   const remaining = totalClicks - clickCount;
+
   if (remaining > 0) {
     footerTip.textContent = `点击左上角标题 ${remaining} 次，会有好事发生`;
   } else {
