@@ -282,36 +282,39 @@ let isLongPress = false;
 function startPress() {
   isLongPress = false;
 
+  // ✅ 加动画类
+  title.classList.add('pressing');
+
   pressTimer = setTimeout(() => {
     isLongPress = true;
 
-    // ✅ 提示反馈
     footerTip.textContent = "🎬 正在进入视频画廊...";
 
-    // （可选）轻微震动（手机）
     if (navigator.vibrate) {
       navigator.vibrate(50);
     }
 
-    // 延迟一点点再跳，让用户看到提示
     setTimeout(() => {
       window.location.href = 'videos.html';
     }, 200);
 
-  }, 600); // 长按时间
+  }, 600);
 }
 
 // === 长按结束 ===
 function endPress() {
   clearTimeout(pressTimer);
+
+  // ✅ 移除动画
+  title.classList.remove('pressing');
 }
 
-// === PC 事件 ===
+// === PC
 title.addEventListener('mousedown', startPress);
 title.addEventListener('mouseup', endPress);
 title.addEventListener('mouseleave', endPress);
 
-// === 手机事件 ===
+// === 手机
 title.addEventListener('touchstart', startPress);
 title.addEventListener('touchend', endPress);
 title.addEventListener('touchcancel', endPress);
