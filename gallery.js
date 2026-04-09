@@ -26,8 +26,8 @@ let currentCommentAlbum = null;
 let cusdisLoaded = false;
 
 // === 今日推荐设置 ===
-const RECOMMEND_VERSION = 260212;
-const RECOMMEND_PATH = "https://gcore.jsdelivr.net/gh/DawnNights/seer_gallery@main/R18/灵巢/";
+const RECOMMEND_VERSION = 260409;
+const RECOMMEND_PATH = "https://gcore.jsdelivr.net/gh/DawnNights/seer_gallery@main/R18/奥菲利娅/";
 
 async function init() {
   const res = await fetch('index.json');
