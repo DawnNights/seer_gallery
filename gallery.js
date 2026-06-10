@@ -1,564 +1,665 @@
-// === gallery.js ===
+// ============================================
+// 醉星河的画廊 — gallery.js
+// 纯前端 SPA，WebView 兼容，无 alert/confirm
+// ============================================
 
-// === Cusdis 配置 ===
-const CUSDIS_APP_ID = "0a430d73-5f2b-4da9-963f-e3b6991dfbab"; // ← 换成你自己的
-const SITE_URL = "https://dawnnights.github.io/seer_gallery/";
+(() => {
+  'use strict';
 
+  // ===== Constants =====
+  const CDN_BASE = 'https://gh-proxy.org/https:/raw.githubusercontent.com/DawnNights/seer_gallery/refs/heads/main/';
+  const CUSDIS_APP_ID = '0a430d73-5f2b-4da9-963f-e3b6991dfbab';
+  const SITE_URL = 'https://dawnnights.github.io/seer_gallery/';
 
-const main = document.getElementById('main');
-const title = document.getElementById('title');
-const backBtn = document.getElementById('backBtn');
-const footerTip = document.getElementById('footer-tip');
+  // ===== State =====
+  let allWorks = [];
+  let allTags = {};
+  let activeTag = null;
+  let searchQuery = '';
+  let currentWork = null;       // 当前打开的详情页作品
+  let r18Unlocked = false;
+  let r18ClickCount = 0;
+  let modalResolve = null;      // modal promise resolver
 
-let rootData = null;
-let currentAlbum = null;
-let albumStack = [];
+  // Viewer state
+  let vWork = null;
+  let vImages = [];
+  let vIndex = 0;
 
-let secretUnlocked = false;
-let clickCount = 0;
-const totalClicks = 5;
+  // ===== DOM =====
+  const $ = id => document.getElementById(id);
+  const main = $('main');
+  const titleEl = $('title');
+  const backBtn = $('backBtn');
+  const searchInput = $('searchInput');
+  const tagCloud = $('tagCloud');
+  const r18Badge = $('r18Badge');
+  const footerTip = $('footerTip');
 
-const commentWrapper = document.getElementById('comment-wrapper');
-const commentThread = document.getElementById('cusdis_thread');
-const commentHome = commentWrapper.parentNode;
-let commentExpanded = false;
-let currentCommentAlbum = null;
-let cusdisLoaded = false;
+  // Viewer
+  const viewer = $('viewer');
+  const vImg = $('vImg');
+  const vPrev = $('vPrev');
+  const vNext = $('vNext');
+  const vClose = $('vClose');
+  const vTitle = $('vTitle');
+  const vTags = $('vTags');
+  const vCounter = $('vCounter');
+  const vCommentArea = $('vCommentArea');
 
-// === 今日推荐设置 ===
-const RECOMMEND_VERSION = 260424;
-const RECOMMEND_PATH = "https://gcore.jsdelivr.net/gh/DawnNights/seer_gallery@main/R18/沧岚/镜像恋人/";
+  // Video
+  const videoOverlay = $('videoOverlay');
+  const videoPlayer = $('videoPlayer');
 
-async function init() {
-  const res = await fetch('index.json');
-  rootData = await res.json();
-  renderAlbumList(rootData.albums, '我的画廊');
-  checkRecommend();
-}
+  // Modal
+  const modal = $('modal');
+  const modalMsg = $('modalMsg');
+  const modalButtons = $('modalButtons');
 
-function el(tag, cls) {
-  const e = document.createElement(tag);
-  if (cls) e.className = cls;
-  return e;
-}
-
-function makeAlbumCard(album) {
-  const card = el('div', 'card fade-in');
-  const img = el('img');
-  img.src = album.images?.length
-    ? album.path + album.images[0]
-    : 'https://via.placeholder.com/400x300?text=No+Image';
-  const name = el('div', 'card-title');
-  name.textContent = album.name;
-  card.append(img, name);
-  card.onclick = () => openAlbum(album);
-  return card;
-}
-
-function makeImageCard(src) {
-  const card = el('div', 'card fade-in');
-  const img = el('img');
-  img.src = src;
-  card.append(img);
-  card.onclick = () => showViewer(src);
-  return card;
-}
-
-function renderAlbumList(albums, heading) {
-  main.innerHTML = '';
-  title.textContent = heading;
-  currentAlbum = null;
-  backBtn.style.display = 'none';
-  renderCommentsForAlbum(null);
-
-  const grid = el('div', 'grid');
-  albums
-    .filter(alb => secretUnlocked || alb.name !== 'R18')
-    .forEach(alb => grid.append(makeAlbumCard(alb)));
-  main.append(grid);
-
-  window.scrollTo({ top: 0, behavior: 'smooth' });
-}
-
-function openAlbum(album, pushToStack = true) {
-  if (pushToStack && currentAlbum) albumStack.push(currentAlbum);
-  currentAlbum = album;
-  main.innerHTML = '';
-  title.textContent = album.name;
-  backBtn.style.display = 'inline-block';
-
-  if (album.subalbums?.length) {
-    const subTitle = el('h2');
-    subTitle.textContent = '子相册';
-    main.append(subTitle);
-    const subGrid = el('div', 'grid');
-    album.subalbums
-      .filter(sa => secretUnlocked || sa.name !== 'R18')
-      .forEach(sa => subGrid.append(makeAlbumCard(sa)));
-    main.append(subGrid);
+  // ==========================================
+  //  Modal System (replaces alert/confirm)
+  // ==========================================
+  /** 显示确认弹窗，返回 Promise<boolean> */
+  function showConfirm(msg) {
+    return new Promise(resolve => {
+      modalResolve = resolve;
+      modalMsg.textContent = msg;
+      modalButtons.innerHTML = `
+        <button class="modal-btn modal-cancel" id="modalCancel">取消</button>
+        <button class="modal-btn modal-confirm" id="modalConfirm">确定</button>
+      `;
+      modal.style.display = 'flex';
+      $('modalConfirm').onclick = () => { modal.style.display = 'none'; resolve(true); };
+      $('modalCancel').onclick = () => { modal.style.display = 'none'; resolve(false); };
+      modal.onclick = (e) => { if (e.target === modal) { modal.style.display = 'none'; resolve(false); } };
+    });
   }
 
-  if (album.images?.length) {
-    const imgTitle = el('h2');
-    imgTitle.textContent = '图片';
-    main.append(imgTitle);
-    const imgGrid = el('div', 'grid');
-    album.images.forEach(img => imgGrid.append(makeImageCard(album.path + img)));
-    main.append(imgGrid);
+  /** 显示提示弹窗，返回 Promise<void> */
+  function showAlert(msg) {
+    return new Promise(resolve => {
+      modalMsg.textContent = msg;
+      modalButtons.innerHTML = `<button class="modal-btn modal-confirm" id="modalOk">确定</button>`;
+      modal.style.display = 'flex';
+      $('modalOk').onclick = () => { modal.style.display = 'none'; resolve(); };
+      modal.onclick = (e) => { if (e.target === modal) { modal.style.display = 'none'; resolve(); } };
+    });
   }
 
-  window.scrollTo({ top: 0, behavior: 'smooth' });
-  renderCommentsForAlbum(album);
-}
+  // ==========================================
+  //  R18 系统
+  // ==========================================
+  function initR18() {
+    r18Unlocked = localStorage.getItem('r18Unlocked') === 'true';
+    r18Badge.style.display = r18Unlocked ? 'inline-flex' : 'none';
+    updateFooterTip();
+  }
 
-function goBack() {
-  if (albumStack.length === 0) {
-    renderAlbumList(rootData.albums, '我的画廊');
-    currentAlbum = null;
+  function updateFooterTip() {
+    if (!currentWork) {
+      footerTip.style.display = 'block';
+      if (r18Unlocked) {
+        footerTip.textContent = 'R18 模式已开启，点击右上角 R18 可关闭';
+      } else if (r18ClickCount >= 5) {
+        footerTip.textContent = '点击左上角标题可解锁 R18 内容';
+      } else {
+        const n = 5 - r18ClickCount;
+        footerTip.textContent = `点击左上角标题 ${n} 次，会有好事发生`;
+      }
+    } else {
+      footerTip.style.display = 'none';
+    }
+  }
+
+  async function onTitleClick() {
+    if (r18Unlocked) return;
+    r18ClickCount++;
+    updateFooterTip();
+    if (r18ClickCount >= 5) {
+      const ok = await showConfirm('是否年满 18 周岁？确认后将解锁 R18 内容。');
+      if (ok) {
+        r18Unlocked = true;
+        localStorage.setItem('r18Unlocked', 'true');
+        r18Badge.style.display = 'inline-flex';
+        updateFooterTip();
+        render();
+      } else {
+        r18ClickCount = 0;
+        updateFooterTip();
+      }
+    }
+  }
+
+  async function onR18BadgeClick() {
+    const ok = await showConfirm('是否关闭 R18 模式？');
+    if (ok) {
+      r18Unlocked = false;
+      localStorage.removeItem('r18Unlocked');
+      r18Badge.style.display = 'none';
+      r18ClickCount = 0;
+      updateFooterTip();
+      render();
+    }
+  }
+
+  // ==========================================
+  //  URL Helpers
+  // ==========================================
+  function photoUrl(id) { return CDN_BASE + '/gallery/' + id + '.jpg'; }
+  function albumImgUrl(id, file) { return CDN_BASE + '/gallery/' + id + '/' + file; }
+  function videoUrl(id) { return CDN_BASE + '/gallery/' + id + '.mp4'; }
+  function videoCoverUrl(id) { return CDN_BASE + '/gallery/' + id + '.webp'; }
+
+  function coverUrl(work) {
+    if (work.type === 'photo') return photoUrl(work.id);
+    if (work.type === 'album') return albumImgUrl(work.id, work.cover || work.files?.[0]);
+    return videoCoverUrl(work.id);
+  }
+
+  function formatDate(ts) {
+    if (!ts) return '';
+    const d = new Date(ts * 1000);
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  }
+
+  // ==========================================
+  //  Init
+  // ==========================================
+  async function init() {
+    try {
+      const res = await fetch('index.json');
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const data = await res.json();
+      allWorks = data.works || [];
+      allTags = data.tags || {};
+    } catch (e) {
+      main.innerHTML = '<p style="padding:60px;text-align:center;color:#999;">加载失败，请刷新重试</p>';
+      return;
+    }
+    initR18();
+    render();
+  }
+
+  // ==========================================
+  //  Render Dispatch
+  // ==========================================
+  function render() {
+    if (currentWork) {
+      showDetail(currentWork);
+    } else {
+      renderGrid();
+    }
+  }
+
+  // ==========================================
+  //  Grid View
+  // ==========================================
+  function renderGrid() {
+    currentWork = null;
+    main.innerHTML = '';
+    titleEl.textContent = '醉星河的画廊';
     backBtn.style.display = 'none';
-  } else {
-    const prev = albumStack.pop();
-    openAlbum(prev, false);
-  }
-}
-backBtn.onclick = goBack;
+    tagCloud.style.display = '';
+    searchInput.style.display = '';
+    updateFooterTip();
+    renderTagCloud();
 
-// === 图片查看器 ===
-let currentImages = [];
-let currentIndex = 0;
-
-function showViewer(src) {
-  const viewer = document.getElementById('viewer');
-  const viewerImg = document.getElementById('viewer-img');
-  viewer.style.display = 'flex';
-  viewerImg.src = src;
-
-  currentImages = (currentAlbum?.images || []).map(img => currentAlbum.path + img);
-  currentIndex = currentImages.indexOf(src);
-
-  const prevBtn = viewer.querySelector('.prev');
-  const nextBtn = viewer.querySelector('.next');
-
-  function showImageAt(index) {
-    if (currentImages.length === 0) return;
-    if (index < 0) index = currentImages.length - 1;
-    if (index >= currentImages.length) index = 0;
-    currentIndex = index;
-    viewerImg.src = currentImages[currentIndex];
-    resetTransform();
+    const filtered = getFilteredWorks();
+    if (filtered.length === 0) {
+      main.innerHTML = '<p style="padding:40px;text-align:center;color:#999;">没有匹配的作品</p>';
+      return;
+    }
+    const grid = el('div', 'grid');
+    filtered.forEach(w => grid.appendChild(createCard(w)));
+    main.appendChild(grid);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
-  prevBtn.onclick = (e) => { e.stopPropagation(); showImageAt(currentIndex - 1); };
-  nextBtn.onclick = (e) => { e.stopPropagation(); showImageAt(currentIndex + 1); };
-  viewer.onclick = (e) => { if (e.target === viewer) closeViewer(); };
-  document.onkeydown = (e) => {
-    if (e.key === 'ArrowLeft') showImageAt(currentIndex - 1);
-    if (e.key === 'ArrowRight') showImageAt(currentIndex + 1);
-    if (e.key === 'Escape') closeViewer();
-  };
-
-  // === ✅ 新增缩放与拖动逻辑 ===
-  let scale = 1, lastScale = 1, startDistance = 0;
-  let isDragging = false, startX = 0, startY = 0, translateX = 0, translateY = 0;
-  let lastTranslateX = 0, lastTranslateY = 0;
-  let lastTap = 0;
-
-  // 滚轮缩放
-  viewerImg.addEventListener('wheel', (e) => {
-    e.preventDefault();
-    const delta = -e.deltaY * 0.001;
-    scale = Math.min(Math.max(scale + delta, 0.5), 5);
-    applyTransform();
-  });
-
-  // 鼠标拖动
-  viewerImg.addEventListener('mousedown', e => {
-    if (scale <= 1) return;
-    isDragging = true;
-    startX = e.clientX - lastTranslateX;
-    startY = e.clientY - lastTranslateY;
-    viewerImg.style.cursor = 'grabbing';
-  });
-  document.addEventListener('mousemove', e => {
-    if (!isDragging) return;
-    translateX = e.clientX - startX;
-    translateY = e.clientY - startY;
-    applyTransform();
-  });
-  document.addEventListener('mouseup', () => {
-    if (isDragging) {
-      isDragging = false;
-      lastTranslateX = translateX;
-      lastTranslateY = translateY;
-      viewerImg.style.cursor = 'grab';
+  function getFilteredWorks() {
+    let list = allWorks;
+    // R18 过滤
+    if (!r18Unlocked) {
+      list = list.filter(w => !(w.tags || []).includes('R18'));
     }
-  });
-
-  // 触摸缩放与拖动
-  viewerImg.addEventListener('touchstart', e => {
-    if (e.touches.length === 2) {
-      e.preventDefault();
-      startDistance = getDistance(e.touches);
-      lastScale = scale;
-    } else if (e.touches.length === 1 && scale > 1) {
-      isDragging = true;
-      startX = e.touches[0].clientX - lastTranslateX;
-      startY = e.touches[0].clientY - lastTranslateY;
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      list = list.filter(w =>
+        w.title.toLowerCase().includes(q) ||
+        (w.tags || []).some(t => t.toLowerCase().includes(q))
+      );
     }
-
-    // 双击放大/还原
-    const now = Date.now();
-    if (now - lastTap < 300 && e.touches.length === 1) {
-      scale = scale > 1 ? 1 : 2;
-      resetPosition();
-      applyTransform();
+    if (activeTag) {
+      list = list.filter(w => (w.tags || []).includes(activeTag));
     }
-    lastTap = now;
-  });
-
-  viewerImg.addEventListener('touchmove', e => {
-    if (e.touches.length === 2) {
-      e.preventDefault();
-      const newDistance = getDistance(e.touches);
-      scale = Math.min(Math.max(lastScale * (newDistance / startDistance), 0.5), 5);
-      applyTransform();
-    } else if (e.touches.length === 1 && isDragging && scale > 1) {
-      translateX = e.touches[0].clientX - startX;
-      translateY = e.touches[0].clientY - startY;
-      applyTransform();
-    }
-  });
-
-  viewerImg.addEventListener('touchend', e => {
-    if (isDragging) {
-      isDragging = false;
-      lastTranslateX = translateX;
-      lastTranslateY = translateY;
-    }
-    if (scale < 1) scale = 1;
-    applyTransform();
-  });
-
-  function getDistance(touches) {
-    const [t1, t2] = touches;
-    const dx = t2.pageX - t1.pageX;
-    const dy = t2.pageY - t1.pageY;
-    return Math.hypot(dx, dy);
+    return list;
   }
 
-  function applyTransform() {
-    viewerImg.style.transform = `translate(${translateX}px, ${translateY}px) scale(${scale})`;
+  function createCard(work) {
+    const card = el('div', 'card fade-in');
+    const img = el('img');
+    img.src = coverUrl(work);
+    card.appendChild(img);
+
+    // Type badge
+    const badge = el('span', 'type-badge');
+    if (work.type === 'album') badge.textContent = work.files?.length + 'P';
+    else if (work.type === 'video') badge.textContent = '🎬';
+
+    card.appendChild(badge);
+
+    // R18 badge
+    if ((work.tags || []).includes('R18')) {
+      const r = el('span', 'r18-card-badge');
+      r.textContent = 'R18';
+      card.appendChild(r);
+    }
+
+    // Tag chips
+    if (work.tags?.length) {
+      const row = el('div', 'card-chips');
+      work.tags.forEach(t => {
+        if (t === 'R18') return;
+        const chip = el('span', 'chip');
+        chip.textContent = t;
+        chip.onclick = (e) => { e.stopPropagation(); activeTag = t; render(); };
+        row.appendChild(chip);
+      });
+      if (row.children.length) card.appendChild(row);
+    }
+
+    const titleDiv = el('div', 'card-title');
+    titleDiv.textContent = work.title;
+    card.appendChild(titleDiv);
+
+    card.onclick = () => showDetail(work);
+    return card;
   }
 
-  function resetTransform() {
-    scale = 1;
-    lastScale = 1;
-    translateX = 0;
-    translateY = 0;
-    lastTranslateX = 0;
-    lastTranslateY = 0;
-    applyTransform();
+  // ===== Tag Cloud (折叠式) =====
+  function renderTagCloud() {
+    tagCloud.innerHTML = '';
+    const list = getFilteredWorks();
+    const counts = {};
+    list.forEach(w => (w.tags || []).forEach(t => { if (t !== 'R18') counts[t] = (counts[t] || 0) + 1; }));
+    const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+
+    // 切换按钮
+    const toggle = el('span', 'tag tag-toggle');
+    toggle.textContent = '🏷️ 标签';
+    if (activeTag) toggle.textContent += ' · 已筛选';
+    tagCloud.appendChild(toggle);
+
+    // 清除筛选（有 activeTag 时始终显示）
+    if (activeTag) {
+      const clear = el('button', 'tag tag-clear');
+      clear.textContent = '✕ 清除';
+      clear.onclick = () => { activeTag = null; render(); };
+      tagCloud.appendChild(clear);
+    }
+
+    // 标签列表容器（可折叠）
+    const body = el('div', 'tag-body collapsed');
+    let expanded = false;
+
+    sorted.forEach(([t, c]) => {
+      const span = el('span', 'tag');
+      if (t === activeTag) span.classList.add('active');
+      span.textContent = `${t} ×${c}`;
+      span.onclick = () => { activeTag = (activeTag === t) ? null : t; render(); };
+      body.appendChild(span);
+    });
+
+    tagCloud.appendChild(body);
+
+    toggle.onclick = () => {
+      expanded = !expanded;
+      body.classList.toggle('expanded', expanded);
+      body.classList.toggle('collapsed', !expanded);
+      toggle.textContent = expanded ? '▼ 收起标签' : '🏷️ 标签';
+      if (activeTag) toggle.textContent += ' · 已筛选';
+    };
   }
 
-  function resetPosition() {
-    translateX = 0;
-    translateY = 0;
-    lastTranslateX = 0;
-    lastTranslateY = 0;
+  // ==========================================
+  //  Detail View — 所有作品共用
+  // ==========================================
+  function showDetail(work) {
+    currentWork = work;
+    main.innerHTML = '';
+    titleEl.textContent = work.title;
+    backBtn.style.display = 'inline-block';
+    tagCloud.style.display = 'none';
+    searchInput.style.display = 'none';
+    footerTip.style.display = 'none';
+
+    // ---- Meta ----
+    const meta = el('div', 'detail-meta');
+    const h1 = el('h1', 'detail-title');
+    h1.textContent = work.title;
+    meta.appendChild(h1);
+
+    const sub = el('div', 'detail-subtitle');
+    sub.innerHTML = `<span>作者：${work.author || 'DawnNights'}</span><span class="detail-date">更新：${formatDate(work.date) || '未知'}</span>`;
+    meta.appendChild(sub);
+
+    if (work.tags?.length) {
+      const tagRow = el('div', 'detail-tags');
+      work.tags.forEach(t => {
+        if (t === 'R18') return;
+        const chip = el('span', 'tag');
+        chip.textContent = t;
+        chip.onclick = () => { activeTag = t; goBack(); };
+        tagRow.appendChild(chip);
+      });
+      meta.appendChild(tagRow);
+    }
+    main.appendChild(meta);
+
+    // ---- 内容区域 ----
+    const content = el('div', 'detail-content');
+
+    if (work.type === 'photo') {
+      const img = el('img', 'detail-photo');
+      img.src = photoUrl(work.id);
+      img.loading = 'lazy';
+      img.onclick = () => openViewer(work);
+      content.appendChild(img);
+
+    } else if (work.type === 'album') {
+      const strip = el('div', 'album-strip');
+      (work.files || []).forEach((f, i) => {
+        const img = el('img', 'strip-img');
+        img.src = albumImgUrl(work.id, f);
+        img.onclick = () => openViewer(work, i);
+        strip.appendChild(img);
+      });
+      content.appendChild(strip);
+
+    } else if (work.type === 'video') {
+      const wrapper = el('div', 'video-cover-wrapper');
+      wrapper.onclick = () => openVideo(work);
+      const cover = el('img', 'video-cover-img');
+      cover.src = videoCoverUrl(work.id);
+      cover.onerror = function() { this.style.display = 'none'; };
+      const playBtn = el('div', 'video-play-btn');
+      playBtn.innerHTML = '▶';
+      wrapper.append(cover, playBtn);
+      content.appendChild(wrapper);
+    }
+
+    main.appendChild(content);
+
+    // ---- 评论区 ----
+    const commentSection = renderCommentUI(work);
+    main.appendChild(commentSection);
+
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  // ==========================================
+  //  Image Viewer (Fullscreen)
+  // ==========================================
+  function openViewer(work, index) {
+    vWork = work;
+
+    if (work.type === 'album') {
+      vImages = work.files || [];
+      vIndex = index || 0;
+      vPrev.style.display = '';
+      vNext.style.display = '';
+    } else {
+      vImages = [work.id];
+      vIndex = 0;
+      vPrev.style.display = 'none';
+      vNext.style.display = 'none';
+    }
+
+    showViewerImage();
+    viewer.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+
+    vTitle.textContent = work.title;
+
+    vTags.innerHTML = '';
+    (work.tags || []).forEach(t => {
+      if (t === 'R18') return;
+      const chip = el('span', 'chip');
+      chip.textContent = t;
+      vTags.appendChild(chip);
+    });
+
+    vCounter.textContent = work.type === 'album' ? `${vIndex + 1}/${vImages.length}` : '';
+
+    // 评论区
+    vCommentArea.innerHTML = '';
+    const cu = renderCommentUI(work);
+    cu.style.marginTop = '0';
+    vCommentArea.appendChild(cu);
+
+    resetViewerTransform();
+  }
+
+  function showViewerImage() {
+    if (vIndex < 0) vIndex = vImages.length - 1;
+    if (vIndex >= vImages.length) vIndex = 0;
+    vImg.src = vWork.type === 'album'
+      ? albumImgUrl(vWork.id, vImages[vIndex])
+      : photoUrl(vImages[vIndex]);
+    vCounter.textContent = vImages.length > 1 ? `${vIndex + 1}/${vImages.length}` : '';
+    resetViewerTransform();
   }
 
   function closeViewer() {
     viewer.style.display = 'none';
-    document.onkeydown = null;
-    resetTransform();
+    document.body.style.overflow = '';
   }
-}
 
-// === 标题：长按进入视频画廊 + 点击解锁 ===
-let pressTimer = null;
-let isLongPress = false;
+  vClose.onclick = closeViewer;
+  viewer.onclick = (e) => { if (e.target === viewer) closeViewer(); };
+  vPrev.onclick = (e) => { e.stopPropagation(); vIndex--; showViewerImage(); };
+  vNext.onclick = (e) => { e.stopPropagation(); vIndex++; showViewerImage(); };
 
-// === 长按开始 ===
-function startPress() {
-  isLongPress = false;
+  document.addEventListener('keydown', e => {
+    if (viewer.style.display !== 'flex') return;
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { vIndex--; showViewerImage(); e.preventDefault(); }
+    else if (e.key === 'ArrowRight' || e.key === 'ArrowDown') { vIndex++; showViewerImage(); e.preventDefault(); }
+    else if (e.key === 'Escape') closeViewer();
+  });
 
-  // ✅ 加动画类
-  title.classList.add('pressing');
+  // ---- Zoom / Drag ----
+  let vScale = 1, vLastScale = 1, vStartDist = 0;
+  let vDragging = false, vStartX = 0, vStartY = 0, vTransX = 0, vTransY = 0;
+  let vLastTransX = 0, vLastTransY = 0, vLastTap = 0;
 
-  pressTimer = setTimeout(() => {
-    isLongPress = true;
+  function resetViewerTransform() {
+    vScale = 1; vLastScale = 1; vTransX = 0; vTransY = 0;
+    vLastTransX = 0; vLastTransY = 0;
+    vImg.style.transform = '';
+    vImg.style.cursor = 'grab';
+  }
 
-    footerTip.textContent = "🎬 正在进入视频画廊...";
+  vImg.addEventListener('wheel', e => {
+    e.preventDefault();
+    vScale = Math.min(Math.max(vScale - e.deltaY * 0.001, 0.5), 5);
+    applyViewerTransform();
+  });
 
-    if (navigator.vibrate) {
-      navigator.vibrate(50);
+  vImg.addEventListener('mousedown', e => {
+    if (vScale <= 1) return;
+    vDragging = true;
+    vStartX = e.clientX - vLastTransX;
+    vStartY = e.clientY - vLastTransY;
+    vImg.style.cursor = 'grabbing';
+  });
+
+  document.addEventListener('mousemove', e => {
+    if (!vDragging) return;
+    vTransX = e.clientX - vStartX;
+    vTransY = e.clientY - vStartY;
+    applyViewerTransform();
+  });
+
+  document.addEventListener('mouseup', () => {
+    if (vDragging) { vDragging = false; vLastTransX = vTransX; vLastTransY = vTransY; vImg.style.cursor = 'grab'; }
+  });
+
+  vImg.addEventListener('touchstart', e => {
+    if (e.touches.length === 2) {
+      e.preventDefault();
+      vStartDist = Math.hypot(e.touches[0].pageX - e.touches[1].pageX, e.touches[0].pageY - e.touches[1].pageY);
+      vLastScale = vScale;
+    } else if (e.touches.length === 1 && vScale > 1) {
+      vDragging = true;
+      vStartX = e.touches[0].clientX - vLastTransX;
+      vStartY = e.touches[0].clientY - vLastTransY;
     }
-
-    setTimeout(() => {
-      window.location.href = 'videos.html';
-    }, 200);
-
-  }, 600);
-}
-
-// === 长按结束 ===
-function endPress() {
-  clearTimeout(pressTimer);
-
-  // ✅ 移除动画
-  title.classList.remove('pressing');
-}
-
-// === PC
-title.addEventListener('mousedown', startPress);
-title.addEventListener('mouseup', endPress);
-title.addEventListener('mouseleave', endPress);
-
-// === 手机
-title.addEventListener('touchstart', startPress);
-title.addEventListener('touchend', endPress);
-title.addEventListener('touchcancel', endPress);
-
-// === 点击（短按）===
-title.addEventListener('click', () => {
-  if (isLongPress) return; // ❗阻止长按触发点击
-
-  if (secretUnlocked) return;
-
-  clickCount++;
-  const remaining = totalClicks - clickCount;
-
-  if (remaining > 0) {
-    footerTip.textContent = `点击左上角标题 ${remaining} 次，会有好事发生`;
-  } else {
-    secretUnlocked = true;
-    footerTip.textContent = "🎉 隐藏相册已解锁！";
-    renderAlbumList(rootData.albums, '我的画廊');
-  }
-});
-
-// === 今日推荐浮窗 ===
-function checkRecommend() {
-  // 1️⃣ 从 URL 读取 path 参数
-  const urlPath = getQueryParam('path');
-
-  // 2️⃣ 如果 URL 指定了 path，则强制使用它
-  let recommendPath = RECOMMEND_PATH;
-  let forceShow = false;
-
-  if (urlPath) {
-    recommendPath = "https://gcore.jsdelivr.net/gh/DawnNights/seer_gallery@main/" + decodeURIComponent(urlPath);
-    if (!recommendPath.endsWith("/")) {
-      recommendPath = recommendPath + "/"
+    const now = Date.now();
+    if (now - vLastTap < 300 && e.touches.length === 1) {
+      vScale = vScale > 1 ? 1 : 2.5;
+      vTransX = 0; vTransY = 0; vLastTransX = 0; vLastTransY = 0;
+      applyViewerTransform();
     }
-    forceShow = true;
+    vLastTap = now;
+  });
+
+  vImg.addEventListener('touchmove', e => {
+    if (e.touches.length === 2) {
+      e.preventDefault();
+      const d = Math.hypot(e.touches[0].pageX - e.touches[1].pageX, e.touches[0].pageY - e.touches[1].pageY);
+      vScale = Math.min(Math.max(vLastScale * (d / vStartDist), 0.5), 5);
+      applyViewerTransform();
+    } else if (e.touches.length === 1 && vDragging && vScale > 1) {
+      vTransX = e.touches[0].clientX - vStartX;
+      vTransY = e.touches[0].clientY - vStartY;
+      applyViewerTransform();
+    }
+  });
+
+  vImg.addEventListener('touchend', () => {
+    if (vDragging) { vDragging = false; vLastTransX = vTransX; vLastTransY = vTransY; }
+    if (vScale < 1) { vScale = 1; applyViewerTransform(); }
+  });
+
+  function applyViewerTransform() {
+    vImg.style.transform = `translate(${vTransX}px,${vTransY}px) scale(${vScale})`;
   }
 
-  // 3️⃣ 非强制模式下，继续走版本控制
-  if (!forceShow) {
-    const saved = localStorage.getItem("recommendVersion");
-    if (saved == RECOMMEND_VERSION) return;
-    localStorage.setItem("recommendVersion", RECOMMEND_VERSION);
+  // ==========================================
+  //  Video Player (Overlay)
+  // ==========================================
+  function openVideo(work) {
+    videoPlayer.src = videoUrl(work.id);
+    videoOverlay.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+    videoPlayer.play().catch(() => {});
+
+    const closeBtn = videoOverlay.querySelector('.v-close-video');
+    closeBtn.onclick = closeVideo;
   }
 
-  // 4️⃣ 查找相册
-  const album = findAlbumByPath(rootData.albums, recommendPath);
-  if (!album || !album.images?.length) return;
+  function closeVideo() {
+    videoPlayer.pause();
+    videoPlayer.src = '';
+    videoOverlay.style.display = 'none';
+    document.body.style.overflow = '';
+  }
 
-  // 5️⃣ 显示浮窗
-  const overlay = document.getElementById('recommend-overlay');
-  const imgEl = document.getElementById('recommend-img');
-  const captionEl = document.getElementById('recommend-caption');
+  videoOverlay.onclick = (e) => { if (e.target === videoOverlay) closeVideo(); };
 
-  imgEl.src = album.path + album.images[0];
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && videoOverlay.style.display === 'flex') closeVideo();
+  });
 
-  const pathName = getAlbumPathName(rootData.albums, recommendPath).join(" / ");
-  captionEl.textContent = "点击图片前往相册：" + pathName;
+  // ==========================================
+  //  Comments (Cusdis)
+  // ==========================================
+  function renderCommentUI(work) {
+    const section = el('div', 'comment-section');
+    const title = el('div', 'comment-title');
+    title.textContent = '💬 评论区';
+    section.appendChild(title);
 
-  overlay.style.display = 'flex';
+    const thread = document.createElement('div');
+    thread.className = 'cusdis-thread';
+    section.appendChild(thread);
 
-  imgEl.onclick = () => {
-    overlay.style.display = 'none';
-    openAlbumByPath(recommendPath);
-  };
+    // 立即加载 Cusdis（非折叠，直接展示）
+    loadCusdis(thread, work);
 
-  overlay.onclick = (e) => {
-    if (e.target === overlay) overlay.style.display = 'none';
-  };
-}
+    return section;
+  }
 
+  function loadCusdis(threadEl, work) {
+    threadEl.innerHTML = '';
+    threadEl.setAttribute('data-host', 'https://cusdis.com');
+    threadEl.setAttribute('data-app-id', CUSDIS_APP_ID);
+    threadEl.setAttribute('data-page-id', work.type + '_' + work.id);
+    threadEl.setAttribute('data-page-title', work.title);
+    threadEl.setAttribute('data-lang', 'zh-cn');
+    threadEl.setAttribute('data-page-url', SITE_URL + '#/work/' + encodeURIComponent(work.id));
+    if (window.CUSDIS) window.CUSDIS.renderTo(threadEl);
 
-// === 工具函数 ===
-function findAlbumByPath(albums, path) {
-  for (const album of albums) {
-    if (album.path === path) return album;
-    if (album.subalbums?.length) {
-      const found = findAlbumByPath(album.subalbums, path);
-      if (found) return found;
+    // Cusdis 通过 srcdoc 渲染（同源），直接用 ResizeObserver 自适应高度
+    const checkIframe = setInterval(() => {
+      const iframe = threadEl.querySelector('iframe');
+      if (!iframe) return;
+      clearInterval(checkIframe);
+
+      const ro = new ResizeObserver(() => {
+        try {
+          const body = iframe.contentDocument?.body;
+          if (body) {
+            iframe.style.height = body.scrollHeight + 'px';
+            iframe.style.overflow = 'hidden';
+          }
+        } catch (_) {}
+      });
+      // 等 Cusdis 渲染完再观察
+      setTimeout(() => {
+        try {
+          const body = iframe.contentDocument?.body;
+          if (body) ro.observe(body);
+        } catch (_) {}
+      }, 500);
+    }, 100);
+  }
+
+  // Cusdis iframe 自适应高度
+
+  // ==========================================
+  //  Navigation
+  // ==========================================
+  function goBack() {
+    if (currentWork) {
+      currentWork = null;
+      render();
     }
   }
-  return null;
-}
+  backBtn.onclick = goBack;
 
-function getAlbumPathName(albums, path, chain = []) {
-  for (const album of albums) {
-    const newChain = [...chain, album.name];
-    if (album.path === path) return newChain;
-    if (album.subalbums?.length) {
-      const found = getAlbumPathName(album.subalbums, path, newChain);
-      if (found.length) return found;
-    }
-  }
-  return [];
-}
+  // ==========================================
+  //  Events
+  // ==========================================
+  titleEl.onclick = onTitleClick;
+  r18Badge.onclick = onR18BadgeClick;
 
-function openAlbumByPath(path) {
-  const album = findAlbumByPath(rootData.albums, path);
-  if (album) openAlbum(album);
-}
+  searchInput.addEventListener('input', () => {
+    searchQuery = searchInput.value.trim();
+    if (!currentWork) renderGrid();
+  });
 
-function renderCommentsForAlbum(album) {
-  // 首页：隐藏评论区
-  if (!album) {
-    resetCommentState();
-    commentWrapper.style.display = 'none';
-    commentHome.appendChild(commentWrapper);
-    return;
+  // ==========================================
+  //  Utility
+  // ==========================================
+  function el(tag, cls) {
+    const e = document.createElement(tag);
+    if (cls) e.className = cls;
+    return e;
   }
 
-  // === 切换相册，强制重置 ===
-  resetCommentState();
-  currentCommentAlbum = album;
+  // ==========================================
+  //  Boot
+  // ==========================================
+  init();
 
-  // 插入到 main 顶部
-  const anchor = ensureCommentAnchor();
-  anchor.appendChild(commentWrapper);
-  commentWrapper.style.display = 'block';
-
-  // 构建 UI（只一次）
-  if (!commentWrapper.classList.contains('collapsible')) {
-    buildCommentCollapseUI();
-  }
-}
-
-
-function buildCommentCollapseUI() {
-  commentWrapper.classList.add('collapsible');
-
-  const toggle = document.createElement('div');
-  toggle.className = 'comment-toggle';
-
-  const title = document.createElement('div');
-  title.textContent = '💬 评论区';
-
-  const action = document.createElement('span');
-  action.textContent = '展开';
-
-  toggle.append(title, action);
-
-  const body = document.createElement('div');
-  body.className = 'comment-body collapsed';
-  body.appendChild(commentThread);
-
-  commentWrapper.replaceChildren(toggle, body);
-
-  toggle.onclick = () => {
-    commentExpanded = !commentExpanded;
-
-    body.classList.toggle('expanded', commentExpanded);
-    body.classList.toggle('collapsed', !commentExpanded);
-    action.textContent = commentExpanded ? '收起' : '展开';
-
-    // 只在“当前相册 + 第一次展开”时加载
-    if (commentExpanded && !cusdisLoaded && currentCommentAlbum) {
-      loadCusdisForAlbum(currentCommentAlbum);
-      cusdisLoaded = true;
-    }
-  };
-}
-
-function resetCommentState() {
-  commentExpanded = false;
-  cusdisLoaded = false;
-  currentCommentAlbum = null;
-
-  const body = commentWrapper.querySelector('.comment-body');
-  const action = commentWrapper.querySelector('.comment-toggle span');
-
-  if (body) {
-    body.classList.remove('expanded');
-    body.classList.add('collapsed');
-  }
-
-  if (action) {
-    action.textContent = '展开';
-  }
-
-  // ⚠️ 关键：清空旧评论
-  commentThread.innerHTML = '';
-}
-
-function loadCusdisForAlbum(album) {
-  commentThread.innerHTML = '';
-
-  commentThread.setAttribute('data-host', 'https://cusdis.com');
-  commentThread.setAttribute('data-app-id', CUSDIS_APP_ID);
-  commentThread.setAttribute('data-page-id', album.path);
-  commentThread.setAttribute('data-page-title', album.name);
-  commentThread.setAttribute('data-lang', 'zh-cn');
-  commentThread.setAttribute(
-    'data-page-url',
-    SITE_URL + '#/' + encodeURIComponent(album.path)
-  );
-
-  window.CUSDIS && window.CUSDIS.renderTo(commentThread);
-}
-
-
-let pendingAlbum = null;
-
-function prepareCusdis(album) {
-  pendingAlbum = album;
-  document.querySelector('.comment-body')?.classList.add('collapsed');
-  document.querySelector('.comment-toggle span').textContent = '展开';
-}
-
-function loadCusdis() {
-  if (!pendingAlbum) return;
-
-  const album = pendingAlbum;
-
-  commentThread.innerHTML = '';
-
-  commentThread.setAttribute('data-host', 'https://cusdis.com');
-  commentThread.setAttribute('data-app-id', CUSDIS_APP_ID);
-  commentThread.setAttribute('data-page-id', album.path);
-  commentThread.setAttribute('data-page-title', album.name);
-  commentThread.setAttribute('data-lang', 'zh-cn');
-  commentThread.setAttribute(
-    'data-page-url',
-    SITE_URL + '#/' + encodeURIComponent(album.path)
-  );
-
-  window.CUSDIS && window.CUSDIS.renderTo(commentThread);
-}
-
-
-function ensureCommentAnchor() {
-  let anchor = document.getElementById('comment-anchor');
-  if (!anchor) {
-    anchor = document.createElement('div');
-    anchor.id = 'comment-anchor';
-    main.prepend(anchor);
-  }
-  return anchor;
-}
-
-function getQueryParam(name) {
-  const params = new URLSearchParams(window.location.search);
-  return params.get(name);
-}
-
-
-
-init();
+})();
