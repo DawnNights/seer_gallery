@@ -42,10 +42,7 @@
   const vPrev = $('vPrev');
   const vNext = $('vNext');
   const vClose = $('vClose');
-  const vTitle = $('vTitle');
-  const vTags = $('vTags');
   const vCounter = $('vCounter');
-  const vCommentArea = $('vCommentArea');
 
   // Video
   const videoOverlay = $('videoOverlay');
@@ -393,6 +390,8 @@
     const commentSection = renderCommentUI(work);
     main.appendChild(commentSection);
 
+    history.pushState({page: 'detail'}, '');
+
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
@@ -415,26 +414,11 @@
     }
 
     showViewerImage();
-    viewer.style.display = 'flex';
+    viewer.classList.add('active');
     document.body.style.overflow = 'hidden';
-
-    vTitle.textContent = work.title;
-
-    vTags.innerHTML = '';
-    (work.tags || []).forEach(t => {
-      if (t === 'R18') return;
-      const chip = el('span', 'chip');
-      chip.textContent = t;
-      vTags.appendChild(chip);
-    });
-
-    vCounter.textContent = work.type === 'album' ? `${vIndex + 1}/${vImages.length}` : '';
-
-    // 评论区
-    vCommentArea.innerHTML = '';
-    const cu = renderCommentUI(work);
-    cu.style.marginTop = '0';
-    vCommentArea.appendChild(cu);
+    history.pushState({page: 'viewer'}, '');
+    // 确保底层详情页内容完全不可见
+    main.style.display = 'none';
 
     resetViewerTransform();
   }
@@ -450,8 +434,10 @@
   }
 
   function closeViewer() {
-    viewer.style.display = 'none';
+    viewer.classList.remove('active');
     document.body.style.overflow = '';
+    // 恢复详情页内容
+    main.style.display = '';
   }
 
   vClose.onclick = closeViewer;
@@ -460,7 +446,7 @@
   vNext.onclick = (e) => { e.stopPropagation(); vIndex++; showViewerImage(); };
 
   document.addEventListener('keydown', e => {
-    if (viewer.style.display !== 'flex') return;
+    if (!viewer.classList.contains('active')) return;
     if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { vIndex--; showViewerImage(); e.preventDefault(); }
     else if (e.key === 'ArrowRight' || e.key === 'ArrowDown') { vIndex++; showViewerImage(); e.preventDefault(); }
     else if (e.key === 'Escape') closeViewer();
@@ -636,6 +622,29 @@
     }
   }
   backBtn.onclick = goBack;
+
+  // ==========================================
+  //  History / Back Button (Mobile Browser)
+  // ==========================================
+  window.addEventListener('popstate', () => {
+    // 视频播放中 → 关闭视频
+    if (videoOverlay.style.display === 'flex') {
+      closeVideo();
+      return;
+    }
+    // 大图模式 → 退出大图
+    if (viewer.classList.contains('active')) {
+      closeViewer();
+      return;
+    }
+    // 作品详情页 → 返回主页
+    if (currentWork) {
+      currentWork = null;
+      render();
+      return;
+    }
+    // 主页 → 让浏览器默认处理（退出）
+  });
 
   // ==========================================
   //  Events

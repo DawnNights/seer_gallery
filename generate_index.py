@@ -1,4 +1,5 @@
-import os, json, re, time
+import os, json, re
+from datetime import datetime
 
 GALLERY_DIR = "gallery"
 IMAGE_EXT = ".jpg"
@@ -8,7 +9,7 @@ COVER_EXTS = {".webp", ".jpg"}  # 视频封面，优先 .webp
 
 def natural_sort_key(name):
     """自然排序：将文件名中的数字按数值比较，而非逐字符"""
-    return [int(c) if c.isdigit() else c.lower() for c in re.split(r'(\d+)', name)]
+    return [int(c) if c.isdigit() else c.lower() for c in re.split(r"(\d+)", name)]
 
 
 def parse_date_title(name):
@@ -112,7 +113,7 @@ def scan_gallery():
         elif os.path.isdir(full_path):
             jpgs = sorted(
                 [f for f in os.listdir(full_path) if f.lower().endswith(IMAGE_EXT)],
-                key=natural_sort_key
+                key=natural_sort_key,
             )
             if not jpgs:
                 continue
@@ -163,8 +164,13 @@ def main():
 
     with open("index.json", "w", encoding="utf-8") as f:
         json.dump(output, f, ensure_ascii=False, indent=2)
+        print(f"已生成 index.json")
 
-    print(f"已生成 index.json")
+    with open(
+        f"record/{datetime.now().strftime('%y%m%d')}.json", "w", encoding="utf-8"
+    ) as f:
+        json.dump(output, f, ensure_ascii=False)
+
     print(
         f"  相片: {counts['photo']}  相册: {counts['album']}  视频: {counts['video']}"
     )

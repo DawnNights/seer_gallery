@@ -22,7 +22,8 @@ body {
   align-items: center;
   justify-content: space-between;
   padding: 10px 14px;
-  padding-top: calc(10px + env(safe-area-inset-top, 0px));
+  padding-top: 40px; /* 10px + 上方状态栏留白 30px */
+  padding-bottom: 10px;
   background: rgba(255,255,255,0.92);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
@@ -123,10 +124,11 @@ body {
   background: #fff;
   border-bottom: 1px solid #eee;
   position: sticky;
-  top: calc(48px + env(safe-area-inset-top, 0px));
+  top: 0;
   z-index: 9;
   overflow-x: auto;
   scrollbar-width: none;
+  margin-top: 0;
 }
 .tag-cloud::-webkit-scrollbar { display: none; }
 
@@ -188,7 +190,7 @@ body {
 main {
   flex: 1;
   padding: 16px;
-  padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px));
+  padding-bottom: 110px; /* 80px + 下方导航栏留白 30px */
 }
 
 /* === Grid === */
@@ -375,11 +377,20 @@ main {
    ============================================ */
 #viewer {
   position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,0.93);
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: #000;
+  z-index: 99999;
   display: none;
   flex-direction: column;
-  z-index: 999;
+  box-sizing: border-box;
+}
+#viewer.active {
+  display: flex;
+  padding-top: 30px;
+  padding-bottom: 30px;
 }
 
 .v-img-area {
@@ -393,12 +404,11 @@ main {
 }
 
 #vImg {
-  max-width: 95%;
-  max-height: 95%;
+  max-width: 100%;
+  max-height: 100%;
   object-fit: contain;
   cursor: grab;
   user-select: none;
-  z-index: 1;
 }
 
 #viewer .nav {
@@ -411,6 +421,7 @@ main {
   cursor: pointer;
   user-select: none;
   z-index: 20;
+  text-shadow: 0 1px 4px rgba(0,0,0,0.5);
 }
 #viewer .nav:active { color: #fff; }
 #viewer .nav-prev { left: 4px; }
@@ -418,57 +429,34 @@ main {
 
 .v-close {
   position: absolute;
-  top: calc(10px + env(safe-area-inset-top, 0px));
-  right: 12px;
-  background: none;
+  top: max(12px, env(safe-area-inset-top, 12px));
+  right: max(12px, env(safe-area-inset-right, 12px));
+  background: rgba(0,0,0,0.4);
   border: none;
-  color: rgba(255,255,255,0.6);
-  font-size: 1.4rem;
+  color: rgba(255,255,255,0.8);
+  font-size: 1.2rem;
   cursor: pointer;
   z-index: 30;
-  padding: 8px;
+  padding: 6px 12px;
+  border-radius: 6px;
+  line-height: 1;
 }
 .v-close:active { color: #fff; }
 
-/* Viewer meta */
-.v-meta {
-  width: 100%;
-  max-width: 900px;
-  margin: 0 auto;
-  padding: 10px 16px;
-  background: rgba(20,20,20,0.85);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  color: #ccc;
-  flex-shrink: 0;
+/* Page counter overlay */
+.v-counter-overlay {
+  position: absolute;
+  bottom: max(16px, env(safe-area-inset-bottom, 16px));
+  right: max(16px, env(safe-area-inset-right, 16px));
+  color: rgba(255,255,255,0.8);
+  font-size: 0.85rem;
+  background: rgba(0,0,0,0.45);
+  padding: 4px 10px;
+  border-radius: 8px;
+  z-index: 25;
+  pointer-events: none;
+  user-select: none;
 }
-.v-meta-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-.v-title {
-  font-weight: 600;
-  font-size: 0.9rem;
-  color: #fff;
-}
-.v-counter {
-  font-size: 0.78rem;
-  color: #999;
-}
-.v-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  margin-top: 5px;
-}
-.v-tags .chip {
-  background: rgba(255,255,255,0.12);
-  color: #bbb;
-}
-.v-tags .chip:active { background: rgba(255,255,255,0.25); color: #fff; }
-
-.v-comment-area { margin-top: 6px; }
 
 /* ============================================
    Video Overlay
@@ -482,6 +470,9 @@ main {
   justify-content: center;
   z-index: 998;
   padding: 16px;
+  padding-top: 46px; /* 16px + 上方状态栏留白 30px */
+  padding-bottom: 46px; /* 16px + 下方导航栏留白 30px */
+  box-sizing: border-box;
 }
 .video-wrapper-inner {
   position: relative;
@@ -514,6 +505,10 @@ main {
   justify-content: center;
   z-index: 9999;
   animation: fadeIn 0.2s ease;
+  padding: 16px;
+  padding-top: 46px; /* 16px + 上方状态栏留白 30px */
+  padding-bottom: 46px; /* 16px + 下方导航栏留白 30px */
+  box-sizing: border-box;
 }
 .modal-box {
   background: #fff;
@@ -596,7 +591,7 @@ footer {
   width: 100%;
   text-align: center;
   padding: 8px 14px;
-  padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+  padding-bottom: 38px; /* 8px + 下方导航栏留白 30px */
   font-size: 0.78rem;
   color: #888;
   background: rgba(255,255,255,0.95);
@@ -630,7 +625,7 @@ footer a:active { text-decoration: underline; }
    Responsive
    ============================================ */
 @media (max-width: 640px) {
-  .topbar { padding: 8px 10px; }
+  .topbar { padding: 8px 10px; padding-top: 38px; } /* 8px + 上方状态栏留白 30px */
   #title { font-size: 0.95rem; }
   #searchInput { width: 120px; }
   #searchInput:focus { width: 150px; }
@@ -643,7 +638,6 @@ footer a:active { text-decoration: underline; }
 
   .tag-cloud {
     padding: 5px 10px;
-    top: 48px;
   }
 
   .detail-title { font-size: 1.2rem; }
@@ -651,7 +645,6 @@ footer a:active { text-decoration: underline; }
 
   .video-play-btn { width: 52px; height: 52px; font-size: 22px; }
 
-  .v-meta { padding: 8px 12px; }
   #viewer .nav { font-size: 1.8rem; padding: 14px 8px; }
 }
 
