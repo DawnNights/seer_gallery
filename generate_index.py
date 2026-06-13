@@ -40,6 +40,11 @@ def scan_gallery():
     authors_db = {
         "2025-12-11_这个赫尔卡星人就是逊了(代发)": "Anticipate",
         "2026-01-10_莫妮卡(代发)": "，.。",
+        "2026-06-09_西塔伦(代发)": "Anticipate",
+        "2026-06-10_沧岚(代发)": "Anticipate",
+        "2026-06-11_卫岳(代发)": "Anticipate",
+        "2026-06-12_莫妮卡(代发)": "Anticipate",
+        "2026-06-13_茉蕊儿(代发)": "Anticipate",
     }
 
     AUTH_DEFAULT = "醉星河"
