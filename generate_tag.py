@@ -9,7 +9,6 @@ import os, json
 
 GALLERY_DIR = "gallery"
 TAGS_FILE = "tags.json"
-IMAGE_EXT = ".jpg"
 
 
 def scan_works():
@@ -35,9 +34,11 @@ def scan_works():
         if base in video_names and ext.lower() in {".webp", ".jpg"}:
             continue
 
-        if os.path.isfile(full_path) and ext.lower() == IMAGE_EXT:
+        if os.path.isfile(full_path) and ext.lower() == ".jpg":
             ids.add(base)
         elif os.path.isfile(full_path) and ext.lower() == ".mp4":
+            ids.add(base)
+        elif os.path.isfile(full_path) and ext.lower() == ".txt":
             ids.add(base)
         elif os.path.isdir(full_path):
             ids.add(e)

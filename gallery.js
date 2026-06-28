@@ -150,13 +150,22 @@
   function coverUrl(work) {
     if (work.type === 'photo') return photoUrl(work.id);
     if (work.type === 'album') return albumImgUrl(work.id, work.cover || work.files?.[0]);
-    return videoCoverUrl(work.id);
+    if (work.type === 'video') return videoCoverUrl(work.id);
+    return ''; // novel 没有图片封面
   }
+
+  function novelUrl(id) { return CDN_BASE + '/gallery/' + id + '.txt'; }
 
   function formatDate(ts) {
     if (!ts) return '';
     const d = new Date(ts * 1000);
     return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  }
+
+  function formatWords(n) {
+    if (!n) return '';
+    if (n < 10000) return n + ' 字';
+    return (n / 10000).toFixed(n % 10000 === 0 ? 0 : 1) + ' 万字';
   }
 
   // ==========================================
@@ -233,14 +242,22 @@
 
   function createCard(work) {
     const card = el('div', 'card fade-in');
-    const img = el('img');
-    img.src = coverUrl(work);
-    card.appendChild(img);
+
+    if (work.type === 'novel') {
+      const tc = el('div', 'text-cover');
+      tc.textContent = work.title;
+      card.appendChild(tc);
+    } else {
+      const img = el('img');
+      img.src = coverUrl(work);
+      card.appendChild(img);
+    }
 
     // Type badge
     const badge = el('span', 'type-badge');
     if (work.type === 'album') badge.textContent = work.files?.length + 'P';
     else if (work.type === 'video') badge.textContent = '🎬';
+    else if (work.type === 'novel') badge.textContent = formatWords(work.words);
 
     card.appendChild(badge);
 
@@ -337,6 +354,11 @@
 
     const sub = el('div', 'detail-subtitle');
     sub.innerHTML = `<span>作者：${work.author || 'DawnNights'}</span><span class="detail-date">更新：${formatDate(work.date) || '未知'}</span>`;
+    if (work.type === 'novel' && work.words) {
+      const ws = el('span', 'detail-words');
+      ws.textContent = formatWords(work.words);
+      sub.appendChild(ws);
+    }
     meta.appendChild(sub);
 
     if (work.tags?.length) {
@@ -382,6 +404,14 @@
       playBtn.innerHTML = '▶';
       wrapper.append(cover, playBtn);
       content.appendChild(wrapper);
+
+    } else if (work.type === 'novel') {
+      const reader = el('div', 'novel-reader');
+      const status = el('div', 'novel-status');
+      status.textContent = '⏳ 加载中…';
+      reader.appendChild(status);
+      content.appendChild(reader);
+      loadNovelContent(work, reader, status);
     }
 
     main.appendChild(content);
@@ -557,6 +587,85 @@
   });
 
   // ==========================================
+  //  Novel
+  // ==========================================
+  let novelProgressTimer = null;
+
+  function startNovelProgressTracking(id) {
+    stopNovelProgressTracking();
+    const key = 'novel_progress_' + id;
+    novelProgressTimer = setInterval(() => {
+      const pos = window.scrollY || document.documentElement.scrollTop || document.body.scrollTop || 0;
+      const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
+      // 读到 90% 以上视为读完，清除进度
+      if (maxScroll > 0 && pos / maxScroll > 0.9) {
+        localStorage.removeItem(key);
+        return;
+      }
+      if (pos > 100) {
+        localStorage.setItem(key, pos);
+      }
+    }, 1500);
+  }
+
+  function stopNovelProgressTracking() {
+    if (novelProgressTimer) {
+      clearInterval(novelProgressTimer);
+      novelProgressTimer = null;
+    }
+  }
+
+  function restoreNovelProgress(id, delay) {
+    setTimeout(() => {
+      const saved = localStorage.getItem('novel_progress_' + id);
+      if (saved) {
+        const pos = parseInt(saved, 10);
+        if (pos > 0) {
+          window.scrollTo({ top: pos, behavior: 'instant' });
+
+          // 显示"回到顶部"按钮
+          const topBtn = el('div', 'novel-top-btn');
+          topBtn.textContent = '↑ 回到顶部';
+          // 检查是否已存在
+          if (!document.getElementById('novelTopBtn')) {
+            topBtn.id = 'novelTopBtn';
+            topBtn.onclick = () => {
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+              localStorage.removeItem('novel_progress_' + id);
+              topBtn.remove();
+            };
+            document.body.appendChild(topBtn);
+          }
+        }
+      }
+    }, delay || 300);
+  }
+
+  function loadNovelContent(work, readerEl, statusEl) {
+    const url = novelUrl(work.id);
+    statusEl.textContent = '⏳ 加载中…';
+    fetch(url)
+      .then(r => {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.text();
+      })
+      .then(text => {
+        statusEl.remove();
+        const contentDiv = el('div', 'novel-content');
+        contentDiv.textContent = text;
+        readerEl.appendChild(contentDiv);
+        // 恢复阅读进度
+        restoreNovelProgress(work.id, 100);
+        // 开始跟踪滚动
+        startNovelProgressTracking(work.id);
+      })
+      .catch(() => {
+        statusEl.textContent = '❌ 加载失败';
+        statusEl.className = 'novel-status novel-error';
+      });
+  }
+
+  // ==========================================
   //  Comments (Cusdis)
   // ==========================================
   function renderCommentUI(work) {
@@ -617,6 +726,9 @@
   // ==========================================
   function goBack() {
     if (currentWork) {
+      stopNovelProgressTracking();
+      const topBtn = document.getElementById('novelTopBtn');
+      if (topBtn) topBtn.remove();
       currentWork = null;
       render();
     }

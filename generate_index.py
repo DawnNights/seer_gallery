@@ -4,6 +4,7 @@ from datetime import datetime
 GALLERY_DIR = "gallery"
 IMAGE_EXT = ".jpg"
 VIDEO_EXT = ".mp4"
+TEXT_EXT = ".txt"
 COVER_EXTS = {".webp", ".jpg"}  # 视频封面，优先 .webp
 
 
@@ -72,8 +73,33 @@ def scan_gallery():
         if base in video_names and ext.lower() in COVER_EXTS:
             continue
 
+        # --- Novel：单 .txt ---
+        if os.path.isfile(full_path) and ext.lower() == TEXT_EXT:
+            _, title = parse_date_title(base)
+            mtime = get_mtime(full_path)
+            tags = tags_db.get(base, [])
+            # 统计字数
+            total_chars = 0
+            try:
+                with open(full_path, "r", encoding="utf-8") as tf:
+                    raw = tf.read()
+                    total_chars = len(raw.replace("\n", "").replace(" ", "").replace("\r", ""))
+            except Exception:
+                pass
+            works.append(
+                {
+                    "id": base,
+                    "type": "novel",
+                    "title": title or base,
+                    "author": authors_db.get(base, AUTH_DEFAULT),
+                    "date": int(mtime),
+                    "tags": tags,
+                    "words": total_chars,
+                }
+            )
+
         # --- Photo：单 .jpg ---
-        if os.path.isfile(full_path) and ext.lower() == IMAGE_EXT:
+        elif os.path.isfile(full_path) and ext.lower() == IMAGE_EXT:
             _, title = parse_date_title(base)
             mtime = get_mtime(full_path)
             tags = tags_db.get(base, [])
@@ -161,7 +187,7 @@ def main():
     tags = collect_tags(works)
 
     # 统计各类型数量
-    counts = {"photo": 0, "album": 0, "video": 0}
+    counts = {"photo": 0, "album": 0, "video": 0, "novel": 0}
     for w in works:
         counts[w["type"]] += 1
 
@@ -177,7 +203,7 @@ def main():
         json.dump(output, f, ensure_ascii=False)
 
     print(
-        f"  相片: {counts['photo']}  相册: {counts['album']}  视频: {counts['video']}"
+        f"  相片: {counts['photo']}  相册: {counts['album']}  视频: {counts['video']}  小说: {counts['novel']}"
     )
     print(f"  标签: {len(tags)}")
     if video_names:
